@@ -4,15 +4,38 @@ import twitter from "./twitter";
 import weibo from "./weibo";
 import xiaohongshu from "./xiaohongshu";
 
-describe("site registry", () => {
-  const adapters = [weibo, twitter, xiaohongshu];
+// One adapter per neo-scraper default engine, in NeoScraper.ts constructor order.
+const expectedIds = [
+  "anime-pictures",
+  "bluesky",
+  "danbooru",
+  "e621",
+  "ehentai",
+  "furaffinity",
+  "gelbooru",
+  "inkbunny",
+  "lofter",
+  "moebooru",
+  "nozomi",
+  "philomena",
+  "pixiv",
+  "reddit",
+  "rule34us",
+  "sankaku-complex",
+  "shimmie2",
+  "shuushuu",
+  "twitter",
+  "weibo",
+  "xiaohongshu",
+];
 
-  it("should register the site adapters in registry order", () => {
-    expect(siteAdapters.map((x) => x.id)).toEqual(["weibo", "twitter", "xiaohongshu"]);
+describe("site registry", () => {
+  it("should register one adapter per neo-scraper default engine in engine order", () => {
+    expect(siteAdapters.map((x) => x.id)).toEqual(expectedIds);
   });
 
   it("should resolve each adapter for page urls on every supported host", () => {
-    for (const adapter of adapters) {
+    for (const adapter of siteAdapters) {
       for (const host of adapter.hosts) {
         expect(adapterForUrl(`https://${host}/u/123/abc`)).toBe(adapter);
         expect(adapterForUrl(`https://www.${host}/u/123/abc`)).toBe(adapter);
@@ -20,7 +43,13 @@ describe("site registry", () => {
     }
   });
 
-  it("must not resolve an adapter for foreign page urls", () => {
+  it("must not resolve an adapter for lookalike or foreign page urls", () => {
+    // Failure mode: unescaped dots in derived matchers would turn host lists
+    // into wildcards matching lookalike host names.
+    for (const adapter of siteAdapters) {
+      const lookalike = `https://${adapter.hosts[0].replace(/\./g, "")}.example/u/1`;
+      expect(adapterForUrl(lookalike)).toBeUndefined();
+    }
     expect(adapterForUrl("https://example.com/some/post")).toBeUndefined();
     expect(adapterForUrl("https://notweibo.com/some/post")).toBeUndefined();
   });
@@ -41,6 +70,6 @@ describe("site registry", () => {
   });
 
   it("should aggregate the source url families of all adapters in registry order", () => {
-    expect(sourceUrlFamilies).toEqual(adapters.flatMap((adapter) => adapter.sourceFamilies ?? []));
+    expect(sourceUrlFamilies).toEqual([...twitter.sourceFamilies ?? [], ...xiaohongshu.sourceFamilies ?? []]);
   });
 });

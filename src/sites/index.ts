@@ -1,4 +1,22 @@
 import type { SourceUrlFamily } from "./identity";
+import animePictures from "./anime-pictures";
+import bluesky from "./bluesky";
+import danbooru from "./danbooru";
+import e621 from "./e621";
+import ehentai from "./ehentai";
+import furaffinity from "./furaffinity";
+import gelbooru from "./gelbooru";
+import inkbunny from "./inkbunny";
+import lofter from "./lofter";
+import moebooru from "./moebooru";
+import nozomi from "./nozomi";
+import philomena from "./philomena";
+import pixiv from "./pixiv";
+import reddit from "./reddit";
+import rule34us from "./rule34us";
+import sankakuComplex from "./sankaku-complex";
+import shimmie2 from "./shimmie2";
+import shuushuu from "./shuushuu";
 import twitter from "./twitter";
 import weibo from "./weibo";
 import xiaohongshu from "./xiaohongshu";
@@ -41,8 +59,30 @@ export interface DownloadFallback {
   resolve: (contentUrl: string) => string;
 }
 
-/** All known sites. */
-export const siteAdapters: SiteAdapter[] = [weibo, twitter, xiaohongshu];
+/** All known sites, one per neo-scraper default engine, in engine order. */
+export const siteAdapters: SiteAdapter[] = [
+  animePictures,
+  bluesky,
+  danbooru,
+  e621,
+  ehentai,
+  furaffinity,
+  gelbooru,
+  inkbunny,
+  lofter,
+  moebooru,
+  nozomi,
+  philomena,
+  pixiv,
+  reddit,
+  rule34us,
+  sankakuComplex,
+  shimmie2,
+  shuushuu,
+  twitter,
+  weibo,
+  xiaohongshu,
+];
 
 /** Source-url families of all sites, in registry order. */
 export const sourceUrlFamilies: SourceUrlFamily[] = siteAdapters.flatMap((adapter) => adapter.sourceFamilies ?? []);

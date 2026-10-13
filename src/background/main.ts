@@ -46,7 +46,7 @@ async function uploadPost(data: PostUploadCommandData) {
     const contentToken = data.post.instanceSpecificData[data.selectedSite.id]?.contentToken;
 
     if (!contentToken) {
-      // TODO: If donmai URL is the source then we need to do the uploadTempFileFromContent here!
+      // TODO: If the scraped page url is the source then we need to do the uploadTempFileFromContent here!
       console.log("contentToken is undefined. This could be a problem for some sources!");
     }
 
