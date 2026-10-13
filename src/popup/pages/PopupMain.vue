@@ -1,17 +1,11 @@
 <script setup lang="ts">
 import { useDark } from "@vueuse/core";
-import { cloneDeep } from "lodash";
 import {
   getUrl,
   getPostInfoSummary,
-  ensurePostHasContentToken,
 } from "~/utils";
 import {
-  BrowserCommand,
-  ScrapedPostDetails,
   TagDetails,
-  PostUploadCommandData,
-  SzuruSiteConfig,
   PoolDetails,
 } from "~/models";
 import { isMobile } from "~/env";
@@ -22,6 +16,7 @@ import { useSimilarSearch } from "../composables/useSimilarSearch";
 import { useTagCounts } from "../composables/useTagCounts";
 import { useContentInfo } from "../composables/useContentInfo";
 import { useGrabPost } from "../composables/useGrabPost";
+import { useUpload } from "../composables/useUpload";
 
 const pop = usePopupStore();
 
@@ -39,6 +34,7 @@ const { isSearchingForSimilarPosts, enableAutoSearch, findSimilar, clickFindSimi
 const { loadTagCounts } = useTagCounts(szuru);
 const { fetchPostsInfo } = useContentInfo(pop.posts);
 const { grabPost } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
+const { upload } = useUpload({ szuru, selectedSite });
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
 // This should only be used as if it were readonly, because the instanceId might change.
@@ -78,41 +74,6 @@ watch(
 
 function openOptionsPage() {
   browser.runtime.openOptionsPage();
-}
-
-async function upload() {
-  if (!cfg.value.selectedSiteId) return;
-  let instanceSpecificData = pop.selectedPost?.instanceSpecificData[cfg.value.selectedSiteId];
-
-  // Don't try to upload if an exact copy is already on the server.
-  if (instanceSpecificData?.reverseSearchResult?.exactPostId) return;
-
-  if (instanceSpecificData) {
-    instanceSpecificData.uploadState = { state: "uploading" };
-  }
-
-  try {
-    const post: ScrapedPostDetails = cloneDeep(pop.selectedPost)!;
-
-    // uploadMode "content" requires a content token to work. So ensure it is set.
-    if (post.uploadMode === "content") {
-      await ensurePostHasContentToken(szuru.value!, post, cfg);
-    }
-
-    const cmdData = new PostUploadCommandData(
-      post,
-      <SzuruSiteConfig>cloneDeep(selectedSite.value),
-      cfg.value.sendUploadNotifications,
-    );
-    const cmd = new BrowserCommand("upload_post", cmdData);
-    await browser.runtime.sendMessage(cmd);
-  } catch (ex: any) {
-    if (instanceSpecificData?.uploadState) {
-      instanceSpecificData.uploadState.state = "error";
-      instanceSpecificData.uploadState.error = ex.toString();
-    }
-    throw ex;
-  }
 }
 
 function removeTag(tag: TagDetails) {
