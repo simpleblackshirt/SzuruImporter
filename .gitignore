@@ -11,7 +11,9 @@
 dist
 dist-ssr
 extension/manifest.json
+extension/.amo-upload-uuid
 node_modules
 src/auto-imports.d.ts
 src/components.d.ts
 *artifacts/
+docs/plan
