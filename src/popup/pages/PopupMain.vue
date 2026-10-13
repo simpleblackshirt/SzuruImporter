@@ -4,7 +4,6 @@ import { cloneDeep } from "lodash";
 import { ScrapeResults } from "neo-scraper";
 import {
   getUrl,
-  encodeTagName,
   getPostInfoSummary,
   ensurePostHasContentToken,
   appendPageUrlToSource,
@@ -22,6 +21,7 @@ import { cfg, usePopupStore } from "~/stores";
 import SzurubooruApi from "~/api";
 import { getSimilarPosts } from "../composables/similarPosts";
 import { useSimilarSearch } from "../composables/useSimilarSearch";
+import { useTagCounts } from "../composables/useTagCounts";
 
 const pop = usePopupStore();
 
@@ -36,6 +36,7 @@ const szuru = computed(() => {
 });
 
 const { isSearchingForSimilarPosts, enableAutoSearch, findSimilar, clickFindSimilar } = useSimilarSearch(szuru);
+const { loadTagCounts } = useTagCounts(szuru);
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
 // This should only be used as if it were readonly, because the instanceId might change.
@@ -252,28 +253,6 @@ function addPool(pool: PoolDetails) {
     // Only add pool if it doesn't already exist
     if (pool.name.length > 0 && pop.selectedPost.pools.find((x) => x.name == pool.name) == undefined) {
       pop.selectedPost.pools.push(pool);
-    }
-  }
-}
-
-async function loadTagCounts() {
-  const allTags = pop.posts.flatMap((x) => x.tags);
-
-  for (let i = 0; i < allTags.length; i += 100) {
-    const query = allTags
-      .slice(i, i + 101)
-      .map((x) => encodeTagName(x.name))
-      .join();
-
-    const resp = await szuru.value?.getTags(query);
-
-    // Not the best code, but it works I guess?
-    if (resp) {
-      for (let post of pop.posts)
-        for (let tag of resp.results) {
-          const postTag = post.tags.find((postTag) => tag.names.includes(postTag.name));
-          if (postTag) postTag.usages = tag.usages;
-        }
     }
   }
 }
