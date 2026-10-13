@@ -2,7 +2,14 @@
 import { useDark } from "@vueuse/core";
 import { cloneDeep } from "lodash";
 import { ScrapeResults } from "neo-scraper";
-import { getUrl, encodeTagName, getErrorMessage, getPostInfoSummary, ensurePostHasContentToken } from "~/utils";
+import {
+  getUrl,
+  encodeTagName,
+  getErrorMessage,
+  getPostInfoSummary,
+  ensurePostHasContentToken,
+  appendPageUrlToSource,
+} from "~/utils";
 import {
   BrowserCommand,
   ScrapedPostDetails,
@@ -126,10 +133,10 @@ async function grabPost() {
       // Add current pageUrl to the source if either
       // a. user has addPageUrlToSource set to true
       // b. source is empty
-      if (cfg.value.addPageUrlToSource || vm.source == "") {
-        if (vm.source != "") vm.source += "\n";
-        vm.source += vm.pageUrl;
-      }
+      // The dedup guard in appendPageUrlToSource always runs, so engine-emitted
+      // source variants of the page url (other locale/host/query form) never
+      // produce duplicates.
+      vm.source = appendPageUrlToSource(vm.source, vm.pageUrl, cfg.value.addPageUrlToSource);
 
       // Initialize instanceSpecificData with an empty object.
       for (const site of cfg.value.sites) {

@@ -3,11 +3,13 @@ import { isEqual, cloneDeep } from "lodash";
 import SzurubooruApi from "~/api";
 import { Post, UpdatePostRequest } from "~/api/models";
 import { isMobile } from "~/env";
+import { useRouter } from "vue-router";
 import { BrowserCommand, PostUpdateCommandData, TagDetails } from "~/models";
 import { cfg, useMergeStore, usePopupStore } from "~/stores";
-import { emptyPost, ensurePostHasContentToken, getUrl } from "~/utils";
+import { emptyPost, ensurePostHasContentToken, getUrl, mergeSources } from "~/utils";
 
 const props = defineProps(["siteId", "postId"]);
+const router = useRouter();
 const merge = useMergeStore();
 const pop = usePopupStore();
 
@@ -70,14 +72,10 @@ function removeTagToAdd(tag: TagDetails) {
 
 function appendSources() {
   if (scrapedPost) {
-    const re = /\r?\n/;
-    const sources = post.value.source?.split(re) ?? [];
-    for (const source of scrapedPost.source.split(re)) {
-      if (sources.indexOf(source) == -1) {
-        sources.push(source);
-      }
-    }
-    post.value.source = sources.join("\n");
+    // mergeSources dedups via urlsReferToSamePost, so form variants of an
+    // existing source (other locale/host/query) are not appended again.
+    // `?? undefined` because Post.source is nullable while mergeSources expects undefined.
+    post.value.source = mergeSources(post.value.source ?? undefined, scrapedPost.source);
   }
 }
 
@@ -259,7 +257,7 @@ onMounted(async () => {
       <div class="popup-section">
         <div style="display: flex; flex-direction: column; gap: 5px">
           <div style="display: flex; gap: 5px">
-            <button class="bg-danger" @click="$router.back()">
+            <button class="bg-danger" @click="router.back()">
               <font-awesome-icon icon="fa-solid fa-chevron-left" class="cursor-pointer" @click="undefined" />
               Back
             </button>
