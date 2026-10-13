@@ -1,13 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { adapterForUrl, downloadFallbackForUrl, refererRules, siteAdapters } from "./index";
+import { adapterForUrl, downloadFallbackForUrl, refererRules, siteAdapters, sourceUrlFamilies } from "./index";
+import twitter from "./twitter";
 import weibo from "./weibo";
+import xiaohongshu from "./xiaohongshu";
 
 describe("site registry", () => {
-  it("should resolve the weibo adapter for weibo page urls on every supported host", () => {
-    expect(siteAdapters.map((x) => x.id)).toEqual(["weibo"]);
+  const adapters = [weibo, twitter, xiaohongshu];
 
-    for (const host of weibo.hosts) {
-      expect(adapterForUrl(`https://${host}/u/123/abc`)).toBe(weibo);
+  it("should register the site adapters in registry order", () => {
+    expect(siteAdapters.map((x) => x.id)).toEqual(["weibo", "twitter", "xiaohongshu"]);
+  });
+
+  it("should resolve each adapter for page urls on every supported host", () => {
+    for (const adapter of adapters) {
+      for (const host of adapter.hosts) {
+        expect(adapterForUrl(`https://${host}/u/123/abc`)).toBe(adapter);
+        expect(adapterForUrl(`https://www.${host}/u/123/abc`)).toBe(adapter);
+      }
     }
   });
 
@@ -29,5 +38,9 @@ describe("site registry", () => {
   it("should expose exactly one referer rule, scoped to the sinaimg cdn", () => {
     expect(refererRules).toEqual([weibo.refererRule]);
     expect(refererRules[0].urlFilter).toEqual(["*://*.sinaimg.cn/*"]);
+  });
+
+  it("should aggregate the source url families of all adapters in registry order", () => {
+    expect(sourceUrlFamilies).toEqual(adapters.flatMap((adapter) => adapter.sourceFamilies ?? []));
   });
 });

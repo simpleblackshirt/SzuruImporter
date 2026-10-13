@@ -1,45 +1,5 @@
-// Locale path segments that some sites (e.g. pixiv) place directly after the host.
-const LOCALE_PATH_SEGMENTS = new Set([
-  "ar",
-  "de",
-  "en",
-  "en-gb",
-  "en-us",
-  "es",
-  "es-es",
-  "es-la",
-  "fr",
-  "id",
-  "it",
-  "ja",
-  "ko",
-  "nl",
-  "pl",
-  "pt",
-  "pt-br",
-  "ru",
-  "sv",
-  "th",
-  "tr",
-  "vi",
-  "zh",
-  "zh-cn",
-  "zh-hk",
-  "zh-tw",
-]);
-
-// Site families where the same post can be served on different hosts with different path layouts.
-// The idPath pattern anchors the post id as the last path segment, so unrelated
-// urls (e.g. a bare user profile page) with a coincidentally equal last segment
-// stay distinct. XHS profile-modal note urls (/user/profile/<uid>/<noteId>) keep
-// the note id as the anchored last segment.
-const POST_ID_FAMILIES: { hosts: string[]; idPath: RegExp }[] = [
-  { hosts: ["x.com", "twitter.com"], idPath: /\/status\/[^/]+$/ },
-  {
-    hosts: ["xiaohongshu.com", "rednote.com"],
-    idPath: /\/(explore|note|discovery\/item|user\/profile\/[^/]+)\/[^/]+$/,
-  },
-];
+import { sourceUrlFamilies } from "~/sites";
+import { LOCALE_PATH_SEGMENTS, samePostInFamily } from "~/sites/identity";
 
 function parseUrl(url: string): URL | undefined {
   try {
@@ -89,20 +49,13 @@ export function urlsReferToSamePost(urlA: string, urlB: string): boolean {
   const pathA = parsedA.pathname;
   const pathB = parsedB.pathname;
 
-  return POST_ID_FAMILIES.some(
-    (family) =>
-      family.hosts.includes(hostA) &&
-      family.hosts.includes(hostB) &&
-      family.idPath.test(pathA) &&
-      family.idPath.test(pathB) &&
-      pathA.slice(pathA.lastIndexOf("/") + 1) == pathB.slice(pathB.lastIndexOf("/") + 1),
-  );
+  return sourceUrlFamilies.some((family) => samePostInFamily(family, hostA, pathA, hostB, pathB));
 }
 
 /**
  * Appends the page url to the source field if wanted, unless the source already
- * refers to the same post: engines like twitter/pixiv/lofter already emit the
- * page url as source, possibly in another locale/host/query variant.
+ * refers to the same post: engines often already emit the page url as source,
+ * possibly in another locale/host/query variant.
  * The dedup check always runs, only appending is governed by addPageUrlToSource.
  */
 export function appendPageUrlToSource(source: string, pageUrl: string, addPageUrlToSource?: boolean): string {
@@ -125,7 +78,7 @@ export function mergeSources(existingSource: string | undefined, scrapedSource: 
   const lines = [...existingLines];
   for (const line of scrapedSource.split(/\r?\n/)) {
     // Compare only against pre-existing lines: scraped companion lines of the
-    // dual-line rednote format (browsed href + canonical) refer to the same post
+    // dual-line source format (browsed href + canonical) refer to the same post
     // and must not collapse each other when merging into an absent source.
     if (!existingLines.some((existing) => urlsReferToSamePost(existing, line))) {
       lines.push(line);

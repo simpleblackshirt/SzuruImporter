@@ -1,4 +1,7 @@
+import type { SourceUrlFamily } from "./identity";
+import twitter from "./twitter";
 import weibo from "./weibo";
+import xiaohongshu from "./xiaohongshu";
 
 /**
  * A site adapter bundles the site-specific behavior (scraped hosts,
@@ -16,8 +19,8 @@ export interface SiteAdapter {
   refererRule?: RefererRule;
   /** Download fallback for media served in downsized renditions. */
   downloadFallback?: DownloadFallback;
-  /** Source-dedup family keys (see ~/utils) applying to this site's source urls. */
-  sourceFamilies?: string[];
+  /** Source-dedup url families (see ~/utils) applying to this site's source urls. */
+  sourceFamilies?: SourceUrlFamily[];
 }
 
 export interface RefererRule {
@@ -39,7 +42,10 @@ export interface DownloadFallback {
 }
 
 /** All known sites. */
-export const siteAdapters: SiteAdapter[] = [weibo];
+export const siteAdapters: SiteAdapter[] = [weibo, twitter, xiaohongshu];
+
+/** Source-url families of all sites, in registry order. */
+export const sourceUrlFamilies: SourceUrlFamily[] = siteAdapters.flatMap((adapter) => adapter.sourceFamilies ?? []);
 
 /** Returns the adapter whose matchUrl matches the given page url. */
 export function adapterForUrl(url: string): SiteAdapter | undefined {
