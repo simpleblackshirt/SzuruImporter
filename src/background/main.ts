@@ -206,3 +206,32 @@ async function messageHandler(cmd: BrowserCommand): Promise<any> {
 }
 
 browser.runtime.onMessage.addListener(messageHandler);
+
+// Weibo's sinaimg CDN returns 403 for image requests without a weibo Referer.
+// Attach the Referer only for requests initiated by our own extension pages
+// (background/popup) - never for requests from normal web browsing.
+const SINAIMG_URL_REGEX = /^https?:\/\/[^/]*\.sinaimg\.cn\//;
+const WEIBO_REFERER = "https://weibo.com/";
+
+browser.webRequest.onBeforeSendHeaders.addListener(
+  (details) => {
+    // Firefox reports originUrl (full url), chromium reports initiator (bare origin).
+    const extensionOrigin = browser.runtime.getURL("").replace(/\/+$/, "");
+    const isExtensionInitiated =
+      details.originUrl?.startsWith(extensionOrigin) || details.initiator?.startsWith(extensionOrigin);
+
+    if (!isExtensionInitiated || !SINAIMG_URL_REGEX.test(details.url)) {
+      return {};
+    }
+
+    // Replace any existing Referer to make the outgoing header deterministic.
+    const requestHeaders = (details.requestHeaders ?? []).filter(
+      (header) => header.name.toLowerCase() != "referer",
+    );
+    requestHeaders.push({ name: "Referer", value: WEIBO_REFERER });
+
+    return { requestHeaders };
+  },
+  { urls: ["*://*.sinaimg.cn/*"] },
+  ["blocking", "requestHeaders"],
+);

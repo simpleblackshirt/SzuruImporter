@@ -17,6 +17,7 @@ import {
 } from "./models";
 import { ScrapedPostDetails, SzuruSiteConfig } from "~/models";
 import { UploadMode } from "neo-scraper";
+import { fetchContentWithFallback } from "./download";
 
 /**
  * A 1:1 wrapper around the szurubooru API.
@@ -167,7 +168,7 @@ export default class SzurubooruApi {
   }
 
   async uploadTempFileFromContent(contentUrl: string): Promise<TemporaryFileUploadResult> {
-    const content = await (await fetch(contentUrl)).blob();
+    const content = await fetchContentWithFallback(contentUrl);
 
     const fullUrl = this.apiUrl + "uploads";
 
