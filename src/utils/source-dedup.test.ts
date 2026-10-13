@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendPageUrlToSource, mergeSources, normalizeSourceUrl, urlsReferToSamePost } from "./utils";
+import { appendPageUrlToSource, mergeSources, normalizeSourceUrl, urlsReferToSamePost } from "../utils";
 
 // Approved dual-line rednote source format: line 1 is the browsed href captured
 // byte-for-byte (xsec_token verbatim, trailing %3D kept), line 2 the tokenless
