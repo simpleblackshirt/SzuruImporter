@@ -11,6 +11,7 @@ import {
 } from "~/models";
 import { PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/models";
 import SzurubooruApi from "~/api";
+import { isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
 
 // Only on dev mode
 if (import.meta.hot) {
@@ -213,13 +214,8 @@ browser.runtime.onMessage.addListener(messageHandler);
 // never for requests from normal web browsing.
 browser.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
-    // Firefox reports originUrl (full url), chromium reports initiator (bare origin).
-    const extensionOrigin = browser.runtime.getURL("").replace(/\/+$/, "");
-    const isExtensionInitiated =
-      details.originUrl?.startsWith(extensionOrigin) || details.initiator?.startsWith(extensionOrigin);
-
     const rule = refererRules.find(
-      (x) => (!x.extensionInitiatedOnly || isExtensionInitiated) && x.urlPattern.test(details.url),
+      (x) => (!x.extensionInitiatedOnly || isExtensionInitiated(details)) && x.urlPattern.test(details.url),
     );
 
     if (!rule) {
@@ -235,5 +231,5 @@ browser.webRequest.onBeforeSendHeaders.addListener(
     return { requestHeaders };
   },
   { urls: refererRules.flatMap((x) => x.urlFilter) },
-  ["blocking", "requestHeaders"],
+  refererExtraInfoSpec(["blocking", "requestHeaders"]),
 );
