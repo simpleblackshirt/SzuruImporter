@@ -8,6 +8,7 @@ import { BrowserCommand, PostUpdateCommandData, TagDetails } from "~/models";
 import { cfg, useMergeStore, usePopupStore } from "~/stores";
 import { emptyPost, ensurePostHasContentToken, getUrl } from "~/utils";
 import { appendScrapedSource, mergeChangeset, scrapedMissingTags } from "../composables/mergeChangeset";
+import { pushTagWithImplications } from "../composables/tagImplications";
 
 const props = defineProps(["siteId", "postId"]);
 const router = useRouter();
@@ -55,12 +56,7 @@ function addTag(tag: TagDetails) {
     tagsToAdd.find((x) => x.name == tag.name) == undefined &&
     post.value.tags.find((x) => x.names.indexOf(tag.name) != -1) == undefined
   ) {
-    tagsToAdd.push(tag);
-
-    // Add implications for the tag
-    if (cfg.value.addTagImplications) {
-      tagsToAdd.push(...tag.implications);
-    }
+    pushTagWithImplications(tagsToAdd, tag, cfg.value.addTagImplications);
   }
 }
 

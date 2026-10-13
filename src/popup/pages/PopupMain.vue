@@ -17,6 +17,7 @@ import { useTagCounts } from "../composables/useTagCounts";
 import { useContentInfo } from "../composables/useContentInfo";
 import { useGrabPost } from "../composables/useGrabPost";
 import { useUpload } from "../composables/useUpload";
+import { pushTagWithImplications } from "../composables/tagImplications";
 
 const pop = usePopupStore();
 
@@ -103,12 +104,7 @@ function addTag(tag: TagDetails) {
   if (pop.selectedPost) {
     // Only add tag if it doesn't already exist
     if (tag.name.length > 0 && pop.selectedPost.tags.find((x) => x.name == tag.name) == undefined) {
-      pop.selectedPost.tags.push(tag);
-
-      // Add implications for the tag
-      if (cfg.value.addTagImplications) {
-        pop.selectedPost.tags.push(...tag.implications);
-      }
+      pushTagWithImplications(pop.selectedPost.tags, tag, cfg.value.addTagImplications);
     }
   }
 }
