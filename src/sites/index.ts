@@ -20,6 +20,7 @@ import shuushuu from "./shuushuu";
 import twitter from "./twitter";
 import weibo from "./weibo";
 import xiaohongshu from "./xiaohongshu";
+import zerochan from "./zerochan";
 
 /**
  * A site adapter bundles the site-specific behavior (scraped hosts,
@@ -82,6 +83,7 @@ export const siteAdapters: SiteAdapter[] = [
   twitter,
   weibo,
   xiaohongshu,
+  zerochan,
 ];
 
 /** Source-url families of all sites, in registry order. */

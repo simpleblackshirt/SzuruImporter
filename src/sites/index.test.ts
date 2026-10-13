@@ -27,6 +27,7 @@ const expectedIds = [
   "twitter",
   "weibo",
   "xiaohongshu",
+  "zerochan",
 ];
 
 describe("site registry", () => {
