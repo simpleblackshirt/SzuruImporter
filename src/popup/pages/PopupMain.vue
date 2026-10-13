@@ -5,7 +5,6 @@ import { ScrapeResults } from "neo-scraper";
 import {
   getUrl,
   encodeTagName,
-  getErrorMessage,
   getPostInfoSummary,
   ensurePostHasContentToken,
   appendPageUrlToSource,
@@ -14,21 +13,17 @@ import {
   BrowserCommand,
   ScrapedPostDetails,
   TagDetails,
-  SimilarPostInfo,
-  SimpleSimilarPost,
-  SimpleImageSearchResult,
   PostUploadCommandData,
   SzuruSiteConfig,
   PoolDetails,
 } from "~/models";
 import { isMobile } from "~/env";
-import { DeepReadonly } from "vue";
 import { cfg, usePopupStore } from "~/stores";
 import SzurubooruApi from "~/api";
+import { getSimilarPosts } from "../composables/similarPosts";
+import { useSimilarSearch } from "../composables/useSimilarSearch";
 
 const pop = usePopupStore();
-const isSearchingForSimilarPosts = ref<number>(0);
-const enableAutoSearch = ref(true);
 
 const selectedSite = computed(() => {
   if (cfg.value.selectedSiteId) {
@@ -39,6 +34,8 @@ const selectedSite = computed(() => {
 const szuru = computed(() => {
   return selectedSite.value ? SzurubooruApi.createFromConfig(selectedSite.value) : undefined;
 });
+
+const { isSearchingForSimilarPosts, enableAutoSearch, findSimilar, clickFindSimilar } = useSimilarSearch(szuru);
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
 // This should only be used as if it were readonly, because the instanceId might change.
@@ -236,22 +233,6 @@ function getActiveSitePostUrl(postId: number): string {
   return getUrl(selectedSite.value.domain, "post", postId.toString());
 }
 
-function getSimilarPosts(data?: DeepReadonly<SimpleImageSearchResult>): SimilarPostInfo[] {
-  if (!data) return [];
-
-  const lst: SimilarPostInfo[] = [];
-
-  for (const similarPost of data.similarPosts) {
-    if (data.exactPostId == similarPost.postId) {
-      continue;
-    }
-
-    lst.push(new SimilarPostInfo(similarPost.postId, Math.round(100 - similarPost.distance * 100)));
-  }
-
-  return lst;
-}
-
 function addTag(tag: TagDetails) {
   if (pop.selectedPost) {
     // Only add tag if it doesn't already exist
@@ -273,47 +254,6 @@ function addPool(pool: PoolDetails) {
       pop.selectedPost.pools.push(pool);
     }
   }
-}
-
-async function clickFindSimilar() {
-  if (pop.selectedPost) return await findSimilar(pop.selectedPost);
-}
-
-async function findSimilar(post: ScrapedPostDetails | undefined) {
-  if (!post || !szuru.value || !cfg.value.selectedSiteId) return;
-
-  // TODO: This code might not work.
-  // Why is toRaw used?
-  // I guess it could happen that the selectedInstance changes halfway during this function?
-  // And in that case toRaw would ensure we have the original selected instance (as it was at the start of this function).
-  // In theory this sounds correct, but idk if it is needed in practice.
-  const selectedInstance = toRaw(szuru.value); // Get current object, and not reactive.
-  let instanceSpecificData = post.instanceSpecificData[cfg.value.selectedSiteId];
-
-  if (!instanceSpecificData) {
-    console.error("instanceSpecificData is undefined. This should never happen!");
-    return;
-  }
-
-  // Don't load this again if it is already loaded.
-  if (instanceSpecificData.reverseSearchResult) return;
-
-  isSearchingForSimilarPosts.value++;
-
-  try {
-    await ensurePostHasContentToken(selectedInstance, post, cfg);
-
-    const res = await selectedInstance.reverseSearchToken(instanceSpecificData.contentToken!);
-
-    instanceSpecificData.reverseSearchResult = {
-      exactPostId: res.exactPost?.id,
-      similarPosts: res.similarPosts.map((x) => <SimpleSimilarPost>{ postId: x.post.id, distance: x.distance }),
-    };
-  } catch (ex: any) {
-    instanceSpecificData.genericError = "Couldn't reverse search. " + getErrorMessage(ex);
-  }
-
-  isSearchingForSimilarPosts.value--;
 }
 
 async function loadTagCounts() {
