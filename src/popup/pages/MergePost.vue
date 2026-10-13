@@ -1,12 +1,13 @@
 <script lang="ts" setup>
-import { isEqual, cloneDeep } from "lodash";
+import { cloneDeep } from "lodash";
 import SzurubooruApi from "~/api";
-import { Post, UpdatePostRequest } from "~/api/models";
+import { Post } from "~/api/models";
 import { isMobile } from "~/env";
 import { useRouter } from "vue-router";
 import { BrowserCommand, PostUpdateCommandData, TagDetails } from "~/models";
 import { cfg, useMergeStore, usePopupStore } from "~/stores";
-import { emptyPost, ensurePostHasContentToken, getUrl, mergeSources } from "~/utils";
+import { emptyPost, ensurePostHasContentToken, getUrl } from "~/utils";
+import { appendScrapedSource, mergeChangeset, scrapedMissingTags } from "../composables/mergeChangeset";
 
 const props = defineProps(["siteId", "postId"]);
 const router = useRouter();
@@ -72,20 +73,13 @@ function removeTagToAdd(tag: TagDetails) {
 
 function appendSources() {
   if (scrapedPost) {
-    // mergeSources dedups via urlsReferToSamePost, so form variants of an
-    // existing source (other locale/host/query) are not appended again.
-    // `?? undefined` because Post.source is nullable while mergeSources expects undefined.
-    post.value.source = mergeSources(post.value.source ?? undefined, scrapedPost.source);
+    post.value.source = appendScrapedSource(post.value.source, scrapedPost.source);
   }
 }
 
 function addMissingTags() {
   if (scrapedPost) {
-    for (const tag of scrapedPost.tags) {
-      if (post.value.tags.find((x) => x.names.indexOf(tag.name) != -1) == undefined) {
-        tagsToAdd.push(tag);
-      }
-    }
+    tagsToAdd.push(...scrapedMissingTags(post.value.tags, scrapedPost.tags));
   }
 }
 
@@ -114,37 +108,14 @@ async function mergeChanges() {
     return;
   }
 
-  const req = <UpdatePostRequest>{
-    version: existingPostRo?.version,
-  };
+  const { request: req, hasChanges } = await mergeChangeset(existingPostRo, scrapedPost, {
+    edited: { source: post.value.source, safety: post.value.safety, tags: post.value.tags, tagsToAdd },
+    imageToKeep: imageToKeep.value,
+    selectedSiteId: cfg.value.selectedSiteId!,
+    ensureContentToken: () => ensurePostHasContentToken(szuru, scrapedPost, cfg),
+  });
 
-  if (post.value.source != existingPostRo.source) {
-    req.source = post.value.source;
-  }
-
-  const newTags = post.value.tags.map((x) => x.names[0]).concat(tagsToAdd.map((x) => x.name));
-
-  if (
-    !isEqual(
-      newTags,
-      existingPostRo.tags.map((x) => x.names[0]),
-    )
-  ) {
-    req.tags = newTags;
-  }
-
-  if (post.value.safety != existingPostRo.safety) {
-    req.safety = post.value.safety;
-  }
-
-  if (imageToKeep.value == "new") {
-    // In practice this should not be needed, because finding similar posts requires the use of content tokens.
-    // So if a similar post is found, it means that a contentToken has already been set.
-    await ensurePostHasContentToken(szuru, scrapedPost, cfg);
-    req.contentToken = scrapedPost.instanceSpecificData[cfg.value.selectedSiteId!].contentToken!;
-  }
-
-  if (!req.safety && !req.source && !(req.contentUrl || req.contentToken) && req.tags === undefined) {
+  if (!hasChanges) {
     merge.genericError = "No changes to merge.";
     return;
   }
