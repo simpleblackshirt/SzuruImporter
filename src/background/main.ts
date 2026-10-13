@@ -1,4 +1,5 @@
 import { encodeTagName, getErrorMessage, getUrl } from "~/utils";
+import { refererRules } from "~/sites";
 import {
   BrowserCommand,
   PostUploadCommandData,
@@ -207,12 +208,9 @@ async function messageHandler(cmd: BrowserCommand): Promise<any> {
 
 browser.runtime.onMessage.addListener(messageHandler);
 
-// Weibo's sinaimg CDN returns 403 for image requests without a weibo Referer.
-// Attach the Referer only for requests initiated by our own extension pages
-// (background/popup) - never for requests from normal web browsing.
-const SINAIMG_URL_REGEX = /^https?:\/\/[^/]*\.sinaimg\.cn\//;
-const WEIBO_REFERER = "https://weibo.com/";
-
+// Hotlink-protected media CDNs (see ~/sites): attach the site's Referer only
+// for requests initiated by our own extension pages (background/popup) -
+// never for requests from normal web browsing.
 browser.webRequest.onBeforeSendHeaders.addListener(
   (details) => {
     // Firefox reports originUrl (full url), chromium reports initiator (bare origin).
@@ -220,7 +218,11 @@ browser.webRequest.onBeforeSendHeaders.addListener(
     const isExtensionInitiated =
       details.originUrl?.startsWith(extensionOrigin) || details.initiator?.startsWith(extensionOrigin);
 
-    if (!isExtensionInitiated || !SINAIMG_URL_REGEX.test(details.url)) {
+    const rule = refererRules.find(
+      (x) => (!x.extensionInitiatedOnly || isExtensionInitiated) && x.urlPattern.test(details.url),
+    );
+
+    if (!rule) {
       return {};
     }
 
@@ -228,10 +230,10 @@ browser.webRequest.onBeforeSendHeaders.addListener(
     const requestHeaders = (details.requestHeaders ?? []).filter(
       (header) => header.name.toLowerCase() != "referer",
     );
-    requestHeaders.push({ name: "Referer", value: WEIBO_REFERER });
+    requestHeaders.push({ name: "Referer", value: rule.referer });
 
     return { requestHeaders };
   },
-  { urls: ["*://*.sinaimg.cn/*"] },
+  { urls: refererRules.flatMap((x) => x.urlFilter) },
   ["blocking", "requestHeaders"],
 );

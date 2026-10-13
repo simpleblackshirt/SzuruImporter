@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchContentWithFallback, getSinaimgFallbackUrl } from "~/api/download";
+import { fetchContentWithFallback } from "~/api/download";
 import SzurubooruApi from "~/api";
 
 // The api posts the blob to szurubooru via axios; mock it to keep tests offline.
@@ -31,24 +31,6 @@ function blobResponse(status = 200): Promise<Partial<Response>> {
 async function expectBlobContent(blob: Blob) {
   expect(blob.size).toBe(1);
 }
-
-describe("getSinaimgFallbackUrl", () => {
-  it("should swap the large rendition segment for mw2000 keeping pic id and extension", () => {
-    expect(getSinaimgFallbackUrl("https://wx4.sinaimg.cn/large/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg")).toBe(
-      "https://wx4.sinaimg.cn/mw2000/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg",
-    );
-  });
-
-  it("should leave non-large sinaimg urls unchanged so no pointless retry happens", () => {
-    const url = "https://wx4.sinaimg.cn/mw2000/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg";
-    expect(getSinaimgFallbackUrl(url)).toBe(url);
-  });
-
-  it("should leave non-sinaimg urls unchanged", () => {
-    const url = "https://cdn.example.com/large/pic.jpg";
-    expect(getSinaimgFallbackUrl(url)).toBe(url);
-  });
-});
 
 describe("fetchContentWithFallback", () => {
   afterEach(() => {

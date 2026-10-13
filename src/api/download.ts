@@ -1,19 +1,4 @@
-/**
- * Weibo's sinaimg CDN serves image renditions via the first path segment
- * (e.g. /large/, /mw2000/) using the same pic id and file extension.
- */
-
-/**
- * Returns the /mw2000/ fallback url for a /large/ sinaimg url.
- * Returns the input url unchanged if it is not a /large/ sinaimg url.
- */
-export function getSinaimgFallbackUrl(contentUrl: string): string {
-  if (!/^https?:\/\/[^/]*\.sinaimg\.cn\/large\//.test(contentUrl)) {
-    return contentUrl;
-  }
-
-  return contentUrl.replace("/large/", "/mw2000/");
-}
+import { downloadFallbackForUrl } from "~/sites";
 
 async function fetchContentBlob(url: string): Promise<Blob> {
   const response = await fetch(url);
@@ -28,14 +13,14 @@ async function fetchContentBlob(url: string): Promise<Blob> {
 
 /**
  * Fetches the content as blob. If that fails, silently retries once with the
- * sinaimg fallback url (see getSinaimgFallbackUrl). Only throws when both
- * attempts fail.
+ * fallback url of the content's site adapter (see ~/sites). Only throws when
+ * both attempts fail.
  */
 export async function fetchContentWithFallback(contentUrl: string): Promise<Blob> {
   try {
     return await fetchContentBlob(contentUrl);
   } catch (ex) {
-    const fallbackUrl = getSinaimgFallbackUrl(contentUrl);
+    const fallbackUrl = downloadFallbackForUrl(contentUrl)?.(contentUrl) ?? contentUrl;
 
     if (fallbackUrl == contentUrl) {
       throw ex;
