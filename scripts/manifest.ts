@@ -1,4 +1,5 @@
 import fs from "fs-extra";
+import "dotenv/config";
 import { getManifest } from "../src/manifest";
 import { log, r } from "./utils";
 
