@@ -73,7 +73,8 @@ export default defineConfig(({ command }) => ({
     sourcemap: isDev ? "inline" : false,
     rollupOptions: {
       input: {
-        background: r("src/background/index.html"),
+        // Background is not an HTML entry: it is built separately as a single-file
+        // classic script by vite.config.background.ts (see src/manifest.ts).
         options: r("src/options/index.html"),
         popup: r("src/popup/index.html"),
       },

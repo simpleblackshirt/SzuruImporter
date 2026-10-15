@@ -30,6 +30,7 @@ const weibo: SiteAdapter = {
   refererRule: {
     urlFilter: ["*://*.sinaimg.cn/*"],
     urlPattern: sinaimgUrlRegex,
+    requestDomains: ["sinaimg.cn"],
     referer: "https://weibo.com/",
     // Attach the Referer only for requests initiated by our own extension
     // pages (background/popup) - never for requests from normal web browsing.

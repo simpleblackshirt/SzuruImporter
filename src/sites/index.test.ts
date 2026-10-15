@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adapterForUrl, downloadFallbackForUrl, refererRules, siteAdapters, sourceUrlFamilies } from "./index";
+import pixiv from "./pixiv";
 import twitter from "./twitter";
 import weibo from "./weibo";
 import xiaohongshu from "./xiaohongshu";
@@ -65,9 +66,19 @@ describe("site registry", () => {
     expect(downloadFallbackForUrl("https://cdn.example.com/large/pic.jpg")).toBeUndefined();
   });
 
-  it("should expose exactly one referer rule, scoped to the sinaimg cdn", () => {
-    expect(refererRules).toEqual([weibo.refererRule]);
-    expect(refererRules[0].urlFilter).toEqual(["*://*.sinaimg.cn/*"]);
+  it("should expose the sinaimg and pximg referer rules in registry order", () => {
+    expect(refererRules).toEqual([pixiv.refererRule, weibo.refererRule]);
+    expect(refererRules.map((x) => x.urlFilter)).toEqual([["*://*.i.pximg.net/*"], ["*://*.sinaimg.cn/*"]]);
+  });
+
+  it("should scope the pximg referer rule to the pixiv cdn", () => {
+    // Failure mode: a wildcard host pattern would rewrite Referers for
+    // lookalike hosts, and a web-page-initiated rule would alter user traffic.
+    const rule = pixiv.refererRule!;
+    expect(rule.referer).toBe("https://pixiv.net/");
+    expect(rule.extensionInitiatedOnly).toBe(true);
+    expect(rule.urlPattern.test("https://i.pximg.net/img-original/img/2022/02/15/06/50/28/96268450_p0.jpg")).toBe(true);
+    expect(rule.urlPattern.test("https://pximg.net.evil.example/img.png")).toBe(false);
   });
 
   it("should aggregate the source url families of all adapters in registry order", () => {

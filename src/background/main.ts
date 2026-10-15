@@ -11,18 +11,20 @@ import {
 } from "~/models";
 import { PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/models";
 import SzurubooruApi from "~/api";
-import { isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
+import { registerDnrRefererRules } from "~/webRequest/dnrReferer";
+import { hasWebRequestBlocking, isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
 
-// Only on dev mode
-if (import.meta.hot) {
-  // @ts-expect-error for background HMR
-  import("/@vite/client");
-  // load latest content script
+// Dev-only: an MV3 background is a built classic script / service worker and cannot load
+// the vite dev client (same-origin rule), so there is no HMR socket here - `pnpm dev:js`
+// rebuilds this bundle and the extension is reloaded from outside (see README "Development
+// & hot reload"). What remains is the dev-only injection of the latest content script.
+if (__DEV__) {
   import("./contentScriptHMR");
 }
 
 browser.notifications.onClicked.addListener((url) => {
-  if (url) {
+  // Only upload-result notifications carry http(s) url ids; anything else is ignored.
+  if (url && /^https?:\/\//.test(url)) {
     browser.tabs.create({ url });
     browser.notifications.clear(url);
   }
@@ -210,26 +212,34 @@ async function messageHandler(cmd: BrowserCommand): Promise<any> {
 browser.runtime.onMessage.addListener(messageHandler);
 
 // Hotlink-protected media CDNs (see ~/sites): attach the site's Referer only
-// for requests initiated by our own extension pages (background/popup) -
-// never for requests from normal web browsing.
-browser.webRequest.onBeforeSendHeaders.addListener(
-  (details) => {
-    const rule = refererRules.find(
-      (x) => (!x.extensionInitiatedOnly || isExtensionInitiated(details)) && x.urlPattern.test(details.url),
-    );
+// for extension-initiated requests - never for requests from normal web browsing.
+// Firefox MV3 keeps blocking webRequest (mv3-facts W1): the gecko manifest
+// variant ships webRequestBlocking and this runtime gate auto-revives the
+// listener there. Chromium (permission pruned) uses DNR session rules instead.
+if (hasWebRequestBlocking()) {
+  browser.webRequest.onBeforeSendHeaders.addListener(
+    (details) => {
+      const rule = refererRules.find(
+        (x) => (!x.extensionInitiatedOnly || isExtensionInitiated(details)) && x.urlPattern.test(details.url),
+      );
 
-    if (!rule) {
-      return {};
-    }
+      if (!rule) {
+        return {};
+      }
 
-    // Replace any existing Referer to make the outgoing header deterministic.
-    const requestHeaders = (details.requestHeaders ?? []).filter(
-      (header) => header.name.toLowerCase() != "referer",
-    );
-    requestHeaders.push({ name: "Referer", value: rule.referer });
+      // Replace any existing Referer to make the outgoing header deterministic.
+      const requestHeaders = (details.requestHeaders ?? []).filter(
+        (header) => header.name.toLowerCase() != "referer",
+      );
+      requestHeaders.push({ name: "Referer", value: rule.referer });
 
-    return { requestHeaders };
-  },
-  { urls: refererRules.flatMap((x) => x.urlFilter) },
-  refererExtraInfoSpec(["blocking", "requestHeaders"]),
-);
+      return { requestHeaders };
+    },
+    { urls: refererRules.flatMap((x) => x.urlFilter) },
+    refererExtraInfoSpec(["blocking", "requestHeaders"]),
+  );
+} else {
+  // Session rules survive SW restarts but are cleared at browser shutdown and
+  // extension update (mv3-facts W1) - re-register idempotently on every wake.
+  registerDnrRefererRules().catch((ex) => console.error("registerDnrRefererRules failed:", ex));
+}

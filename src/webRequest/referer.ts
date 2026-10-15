@@ -24,3 +24,14 @@ export function refererExtraInfoSpec(
   }
   return [...base, "extraHeaders"];
 }
+
+/**
+ * Firefox MV3 keeps blocking webRequest (mv3-facts W1), Chromium does not: this
+ * gate reads the runtime manifest, so the gecko variant (permissions include
+ * webRequestBlocking) auto-revives the blocking-webRequest referer listeners in
+ * main.ts and popupReferrer.ts, while the Chromium variant takes the DNR
+ * session-rule path (~/webRequest/dnrReferer).
+ */
+export function hasWebRequestBlocking(): boolean {
+  return browser.runtime.getManifest().permissions?.includes("webRequestBlocking") ?? false;
+}

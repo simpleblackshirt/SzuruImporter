@@ -2,17 +2,21 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 const testCtx = vi.hoisted(() => {
   const addOnBeforeSendHeadersListener = vi.fn();
+  // Mutable: emptying this simulates the Chromium manifest (webRequestBlocking
+  // pruned; DNR covers the popup display path there instead).
+  const permissions = ["webRequestBlocking"];
 
   const browserStub = {
     runtime: {
       getURL: (path: string) => `moz-extension://test-uuid/${path.replace(/^\//, "")}`,
+      getManifest: () => ({ manifest_version: 3, permissions: [...permissions] }),
       onMessage: { addListener: vi.fn() },
       sendMessage: vi.fn(),
     },
     webRequest: { onBeforeSendHeaders: { addListener: addOnBeforeSendHeadersListener } },
   };
 
-  return { addOnBeforeSendHeadersListener, browserStub };
+  return { addOnBeforeSendHeadersListener, permissions, browserStub };
 });
 
 // unplugin-auto-import turns the global `browser` into an import of webextension-polyfill,
@@ -92,5 +96,15 @@ describe("popup referrer webRequest listener", () => {
     const result = getListener()(details({ url: withoutReferrerPost.contentUrl }));
 
     expect(result.requestHeaders).toEqual([{ name: "User-Agent", value: "Mozilla/5.0" }]);
+  });
+
+  it("must be a no-op without the webRequestBlocking permission", () => {
+    // Failure mode: on the Chromium manifest variant the permission is pruned;
+    // registering the listener anyway throws in the popup page and breaks the
+    // stash review UI (DNR session rules cover the path there).
+    testCtx.permissions.length = 0;
+    registerPopupReferrerListener(getPostForContentUrl);
+
+    expect(testCtx.addOnBeforeSendHeadersListener).toHaveBeenCalledTimes(1);
   });
 });

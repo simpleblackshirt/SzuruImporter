@@ -43,10 +43,12 @@ export interface SiteAdapter {
 }
 
 export interface RefererRule {
-  /** webRequest listener url filters (match patterns). */
+  /** webRequest listener url filters (match patterns, Firefox path). */
   urlFilter: string[];
   /** Matches the request urls this rule applies to. */
   urlPattern: RegExp;
+  /** Registrable domains for DNR requestDomains (Chromium path; matches subdomains too). */
+  requestDomains: string[];
   /** Referer header value attached to matching requests. */
   referer: string;
   /** Attach the Referer only to requests initiated by our own extension pages. */

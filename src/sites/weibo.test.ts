@@ -25,9 +25,12 @@ describe("weibo site adapter", () => {
   });
 
   it("should carry the sinaimg referer rule scoped to extension-initiated requests", () => {
+    // requestDomains feeds the Chromium DNR session rules (subdomains included);
+    // urlFilter remains the Firefox blocking-webRequest filter.
     expect(weibo.refererRule).toEqual({
       urlFilter: ["*://*.sinaimg.cn/*"],
       urlPattern: expect.any(RegExp),
+      requestDomains: ["sinaimg.cn"],
       referer: "https://weibo.com/",
       extensionInitiatedOnly: true,
     });

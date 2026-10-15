@@ -4,6 +4,7 @@ const forbiddenProtocols = [
   "chrome://",
   "devtools://",
   "edge://",
+  "moz-extension://",
   "https://chrome.google.com/webstore",
 ];
 
