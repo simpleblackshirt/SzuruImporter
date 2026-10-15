@@ -2,7 +2,7 @@
   "name": "szuruchrome",
   "displayName": "SzuruChrome",
   "description": "Import media from various sites into szurubooru.",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "scripts": {
     "dev": "npm run clear && cross-env NODE_ENV=development run-p dev:*",
