@@ -119,7 +119,7 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
 <template>
   <div class="content-holder">
     <div class="content-wrapper flex flex-auto flex-column gap-3">
-      <div><strong>SzuruChrome Settings</strong></div>
+      <div><strong>Szuru Importer Settings</strong></div>
 
       <TabView>
         <TabPanel header="General">

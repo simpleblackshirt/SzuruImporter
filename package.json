@@ -1,8 +1,8 @@
 {
-  "name": "szuruchrome",
-  "displayName": "SzuruChrome",
+  "name": "szuru-importer",
+  "displayName": "Szuru Importer",
   "description": "Import media from various sites into szurubooru.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "scripts": {
     "dev": "npm run clear && cross-env NODE_ENV=development run-p dev:*",

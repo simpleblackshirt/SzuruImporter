@@ -1,4 +1,4 @@
-# SzuruChrome
+# Szuru Importer
 
 Chrome/Firefox extension which can import media from various sites into a [szurubooru](https://github.com/rr-/szurubooru) instance.
 
@@ -8,16 +8,16 @@ Chrome/Firefox extension which can import media from various sites into a [szuru
 
 ### Firefox
 
-I am experimenting with publishing the extension to Firefox Add-ons. You can find it [here](https://addons.mozilla.org/en-US/firefox/addon/szuruchrome/). This version will automatically update.
+I am experimenting with publishing the extension to Firefox Add-ons. You can find it [here](https://addons.mozilla.org/en-US/firefox/addon/szuruimporter/). This version will automatically update.
 
-You can also download the .xpi from the [release tab](https://github.com/neobooru/SzuruChrome/releases) and manually install it. This version will not automatically update.
+You can also download the .xpi from the [release tab](./releases) and manually install it. This version will not automatically update.
 
 Both versions can be installed side by side, as they do not affect each other. This also means that you need to configure both of them independently.
 
 ### Chrome
 
 I can't create a valid .crx file, which means that you'll have to use [Chrome's "Load unpacked extension"](https://developer.chrome.com/docs/extensions/mv3/getstarted/#unpacked) feature.
-You can download a .zip containing the needed files from the [release tab](https://github.com/neobooru/SzuruChrome/releases). Check [this Stack Overflow answer](https://stackoverflow.com/a/38011386) if you want to get rid of the developer extension popup.
+You can download a .zip containing the needed files from the [release tab](./releases). Check [this Stack Overflow answer](https://stackoverflow.com/a/38011386) if you want to get rid of the developer extension popup.
 
 ## Build/debug
 
@@ -76,4 +76,4 @@ The production flow (`pnpm build`) bundles the background as a single self-conta
 
 The full wave-3 write-up (incl. runtime-verification steps) lives in `docs/plan/20261015-mv3-migration/t3-mv3-background-runtime.md` (local working notes).
 
-See [the developer notes](https://github.com/neobooru/SzuruChrome/wiki/Developer-notes) for more information.
+See [the developer notes](./wiki/Developer-notes) for more information.
