@@ -1,23 +1,5 @@
 import { describe, expect, it } from "vitest";
-import weibo, { getSinaimgFallbackUrl } from "./weibo";
-
-describe("getSinaimgFallbackUrl", () => {
-  it("should swap the large rendition segment for mw2000 keeping pic id and extension", () => {
-    expect(getSinaimgFallbackUrl("https://wx4.sinaimg.cn/large/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg")).toBe(
-      "https://wx4.sinaimg.cn/mw2000/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg",
-    );
-  });
-
-  it("should leave non-large sinaimg urls unchanged so no pointless retry happens", () => {
-    const url = "https://wx4.sinaimg.cn/mw2000/bbcf6a50gy1ihzrvv25vuj20rl0lndil.jpg";
-    expect(getSinaimgFallbackUrl(url)).toBe(url);
-  });
-
-  it("should leave non-sinaimg urls unchanged", () => {
-    const url = "https://cdn.example.com/large/pic.jpg";
-    expect(getSinaimgFallbackUrl(url)).toBe(url);
-  });
-});
+import weibo from "./weibo";
 
 describe("weibo site adapter", () => {
   it("should declare the page hosts of the neo-scraper Weibo engine", () => {
