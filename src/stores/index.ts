@@ -19,6 +19,7 @@ export const cfg = useStorageLocal(
     sendUploadNotifications: false,
     autoSearchSimilar: false,
     loadTagCounts: true,
+    resolveTagAliases: false,
     fetchPostInfo: true,
     useContentTokens: true,
     sites: [] as Array<SzuruSiteConfig>,

@@ -207,6 +207,17 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
 
             <div class="col-12 md:col-6">
               <label>
+                <input type="checkbox" v-model="cfg.resolveTagAliases" />
+                Replace tag aliases with their primary tag name
+              </label>
+              <p class="hint">
+                When a grabbed tag exists in the selected szurubooru instance only as an alias of another tag, replace
+                it with that tag's primary name in the popup and on upload.
+              </p>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <label>
                 <input type="checkbox" v-model="cfg.popup.showSource" />
                 Show source textbox in popup
               </label>

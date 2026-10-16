@@ -99,7 +99,9 @@ export function useGrabPost(deps: GrabPostDeps) {
       enableAutoSearch.value = false;
       pop.selectedPostId = pop.posts[0].id;
 
-      if (cfg.value.loadTagCounts) {
+      // Resolution needs the same instance tag data as the usage counts, so
+      // either option triggers the shared (single) batched fetch.
+      if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
         loadTagCounts();
       }
 
