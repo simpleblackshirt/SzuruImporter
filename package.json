@@ -2,7 +2,7 @@
   "name": "szuru-importer",
   "displayName": "Szuru Importer",
   "description": "Import media from various sites into szurubooru.",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "private": true,
   "scripts": {
     "dev": "npm run clear && cross-env NODE_ENV=development run-p dev:*",
