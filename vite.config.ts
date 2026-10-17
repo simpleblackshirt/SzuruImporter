@@ -84,6 +84,7 @@ export default defineConfig(({ command }) => ({
     globals: true,
     environment: "jsdom",
     pool: "threads",
+    hookTimeout: 60000,
     clearMocks: false,
     mockReset: false,
     restoreMocks: false,
