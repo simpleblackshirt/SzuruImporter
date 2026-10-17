@@ -24,6 +24,10 @@
     th,
     td {
       padding: 0.4em;
+      // PrimeVue >= 4 styles cell borders with theme tokens that are undefined
+      // here (no preset configured), so border-color falls back to currentColor
+      // and shows white lines in dark mode. Use the app border color instead.
+      border-color: var(--border-color);
     }
   }
 }
