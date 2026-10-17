@@ -1,15 +1,17 @@
-.p-tabview {
-  .p-tabview-nav {
+// PrimeVue v5 (unstyled-by-us): structural class overrides only.
+// Theme is intentionally not configured - components are styled by hand here.
+
+.p-tabs {
+  .p-tablist-tab-list {
     margin: 1em 0;
   }
 
-  .p-tabview-header {
-    span {
-      padding: 0 1.2em;
-      line-height: 2.3em;
-    }
+  .p-tab {
+    padding: 0 1.2em;
+    line-height: 2.3em;
 
-    &.p-highlight {
+    &.p-tab-active,
+    &[data-p-active="true"] {
       background-color: var(--tab-color);
     }
   }

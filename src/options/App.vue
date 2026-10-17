@@ -4,7 +4,10 @@ import SzuruWrapper from "~/api";
 import { cfg } from "~/stores";
 import { getErrorMessage } from "~/utils";
 
-import TabView from "primevue/tabview";
+import Tabs from "primevue/tabs";
+import TabList from "primevue/tablist";
+import Tab from "primevue/tab";
+import TabPanels from "primevue/tabpanels";
 import TabPanel from "primevue/tabpanel";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
@@ -121,8 +124,15 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
     <div class="content-wrapper flex flex-auto flex-column gap-3">
       <div><strong>Szuru Importer Settings</strong></div>
 
-      <TabView>
-        <TabPanel header="General">
+      <Tabs value="0">
+        <TabList>
+          <Tab value="0">General</Tab>
+          <Tab value="1">Interface</Tab>
+          <Tab value="2">Instances</Tab>
+          <Tab value="3">Tags</Tab>
+        </TabList>
+        <TabPanels>
+        <TabPanel value="0">
           <div class="grid">
             <div class="col-12 md:col-6">
               <label>
@@ -170,7 +180,7 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
           </div>
         </TabPanel>
 
-        <TabPanel header="Interface">
+        <TabPanel value="1">
           <div class="grid">
             <div class="col-12 md:col-6 mb-2">
               <label>Theme</label>
@@ -239,7 +249,7 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
           </div>
         </TabPanel>
 
-        <TabPanel header="Instances">
+        <TabPanel value="2">
           <div class="formgrid grid">
             <div class="field col-12">
               <label>Selected Szurubooru Instance</label>
@@ -286,7 +296,7 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
           </div>
         </TabPanel>
 
-        <TabPanel header="Tags">
+        <TabPanel value="3">
           <div class="separated-content">
             <div class="grid">
               <DataTable :value="cfg.tagCategories" table-class="col-12" style="width: 100%">
@@ -376,7 +386,8 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
           </div>
         </TabPanel>
         -->
-      </TabView>
+        </TabPanels>
+      </Tabs>
     </div>
   </div>
 </template>

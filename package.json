@@ -38,7 +38,7 @@
     "neo-scraper": "file:..\\neo-scraper",
     "pinia": "^2.3.1",
     "primeflex": "^4.0.0",
-    "primevue": "3.45.0",
+    "primevue": "^5.0.2",
     "vue-router": "^5.4.0"
   },
   "devDependencies": {
