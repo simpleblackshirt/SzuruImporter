@@ -129,7 +129,7 @@ async function mergeChanges() {
 
 watch(
   () => post.value.source,
-  (value, oldValue) => {
+  (_value, _oldValue) => {
     // TODO: Implement this.
     sourcesAdded.value = 0;
     sourcesRemoved.value = 0;

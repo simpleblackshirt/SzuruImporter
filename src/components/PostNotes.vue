@@ -67,12 +67,12 @@ const hoverNoteStyle = computed(() => {
       @mouseleave="mouseOverNoteText = false"
     >
       <div class="wrapper">
-        <Markdown :source="hoverNote.text" />
+        <MarkdownContent :source="hoverNote.text" />
       </div>
     </div>
 
     <svg class="notes-overlay" preserveAspectRatio="none" viewBox="0 0 1 1">
-      <g v-for="note in notes">
+      <g v-for="(note, i) in notes" :key="i">
         <polygon
           vector-effect="non-scaling-stroke"
           stroke-alignment="inside"

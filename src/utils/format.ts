@@ -2,7 +2,6 @@ import byteSize from "byte-size";
 import { MicroUser, Post } from "../api/models";
 import { ScrapedPostDetails, TagDetails } from "../models";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getErrorMessage(ex: any) {
   return ex.description ?? ex.message ?? ex;
 }
