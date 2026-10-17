@@ -83,5 +83,9 @@ export default defineConfig(({ command }) => ({
   test: {
     globals: true,
     environment: "jsdom",
+    pool: "threads",
+    clearMocks: false,
+    mockReset: false,
+    restoreMocks: false,
   },
 }));
