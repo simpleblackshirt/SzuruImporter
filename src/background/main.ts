@@ -13,6 +13,7 @@ import { PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/models";
 import SzurubooruApi from "~/api";
 import { registerDnrRefererRules } from "~/webRequest/dnrReferer";
 import { hasWebRequestBlocking, isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
+import "./contextMenu";
 
 // Dev-only: an MV3 background is a built classic script / service worker and cannot load
 // the vite dev client (same-origin rule), so there is no HMR socket here - `pnpm dev:js`
