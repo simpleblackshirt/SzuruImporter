@@ -34,7 +34,7 @@ const szuru = computed(() => {
 const { isSearchingForSimilarPosts, enableAutoSearch, findSimilar, clickFindSimilar } = useSimilarSearch(szuru);
 const { loadTagCounts } = useTagCounts(szuru);
 const { fetchPostsInfo } = useContentInfo(pop.posts);
-const { grabPost } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
+const { grabPost, pickupStashedGrab } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
 const { upload } = useUpload({ szuru, selectedSite });
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
@@ -130,9 +130,14 @@ function onResolutionLoaded(res: any) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (pop.posts.length == 0) {
-    grabPost();
+    // A context-menu grab stashed by the background takes precedence over the
+    // active-tab auto-grab; a failed/stale pickup falls through to grabPost().
+    const picked = await pickupStashedGrab();
+    if (!picked) {
+      grabPost();
+    }
   }
 });
 

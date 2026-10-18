@@ -2,16 +2,14 @@ import { ScrapeResults } from "neo-scraper";
 import type { Ref } from "vue";
 import { BrowserCommand, ScrapedPostDetails } from "~/models";
 import { cfg, usePopupStore } from "~/stores";
-import { appendPageUrlToSource } from "~/utils";
+import { materializeScrapeResults } from "./materialize";
 
-/**
- * Name the popup assigns to the post scraped by neo-scraper's fallback engine
- * (engine "fallback" + its post name "Upload as URL"). The composite doubles as
- * an identity marker: `alwaysUploadAsContent` must not switch this post to
- * uploadMode "content" because its contentUrl is a web page, not a media file.
- * Must stay in sync with neo-scraper's Fallback engine naming.
- */
-export const FALLBACK_UPLOAD_AS_URL_NAME = "[fallback] Upload as URL";
+export { FALLBACK_UPLOAD_AS_URL_NAME } from "./materialize";
+
+/** storage.local key + value contract shared with the background (contextMenu.ts). */
+const STASH_KEY = "contextGrabStash";
+/** Unpicked grabs older than this are discarded at pickup. */
+const STASH_TTL_MS = 5 * 60 * 1000;
 
 interface GrabPostDeps {
   /**
@@ -28,6 +26,35 @@ interface GrabPostDeps {
 export function useGrabPost(deps: GrabPostDeps) {
   const pop = usePopupStore();
   const { enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo } = deps;
+
+  /**
+   * The post-population block shared by both entry points (tab grab and stash
+   * pickup): select the first post and kick off the content info/similar search
+   * pipeline exactly once.
+   */
+  async function populatePosts() {
+    // Hack so that findSimilar does not trigger when we set selectedPostId, due to the watch(...).
+    // This because we might change the contentUrl in fetchPostInfo, after which we'd need to call findSimilar again.
+    // In which case it would be better to just call it once.
+    enableAutoSearch.value = false;
+    pop.selectedPostId = pop.posts[0].id;
+
+    // Resolution needs the same instance tag data as the usage counts, so
+    // either option triggers the shared (single) batched fetch.
+    if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
+      loadTagCounts();
+    }
+
+    if (cfg.value.fetchPostInfo) {
+      await fetchPostsInfo();
+    }
+
+    // Delayed call to findSimilar, as fetchPostInfo might change the post's contentUrl.
+    enableAutoSearch.value = true;
+    if (cfg.value.autoSearchSimilar) {
+      findSimilar(pop.selectedPost);
+    }
+  }
 
   async function grabPost() {
     // Get active tab
@@ -50,74 +77,64 @@ export function useGrabPost(deps: GrabPostDeps) {
 
     console.dir(scrapeResults);
 
-    // Clear current posts array
     pop.posts.splice(0);
-
-    for (const result of scrapeResults.results) {
-      for (const i in result.posts) {
-        const vm = new ScrapedPostDetails(result.posts[i]);
-        const name = result.posts[i].name ?? `Post ${parseInt(i) + 1}`; // parseInt() is required!
-        vm.name = `[${result.engine}] ${name}`;
-
-        if (!cfg.value.addAllParsedTags) {
-          vm.tags.splice(0);
-        }
-
-        if (cfg.value.alwaysUploadAsContent && vm.name !== FALLBACK_UPLOAD_AS_URL_NAME) {
-          vm.uploadMode = "content";
-        }
-
-        // Add current pageUrl to the source if either
-        // a. user has addPageUrlToSource set to true
-        // b. source is empty
-        // The dedup guard in appendPageUrlToSource always runs, so engine-emitted
-        // source variants of the page url (other locale/host/query form) never
-        // produce duplicates.
-        vm.source = appendPageUrlToSource(vm.source, vm.pageUrl, cfg.value.addPageUrlToSource);
-
-        // Initialize instanceSpecificData with an empty object.
-        for (const site of cfg.value.sites) {
-          vm.instanceSpecificData[site.id] = {};
-        }
-
-        // Remove ignored tags
-        // The complexity for this is quite bad but all the other ways I tried were even worse
-        vm.tags = vm.tags.filter((tag) =>
-          cfg.value.tagIgnores.every(
-            (ignoredTag) => tag.name != ignoredTag.names[0], // no getters after deserializing
-          ),
-        );
-
-        pop.posts.push(vm);
-      }
-    }
+    pop.posts.push(...materializeScrapeResults(scrapeResults));
 
     if (pop.posts.length > 0) {
-      // Hack so that findSimilar does not trigger when we set selectedPostId, due to the watch(...).
-      // This because we might change the contentUrl in fetchPostInfo, after which we'd need to call findSimilar again.
-      // In which case it would be better to just call it once.
-      enableAutoSearch.value = false;
-      pop.selectedPostId = pop.posts[0].id;
-
-      // Resolution needs the same instance tag data as the usage counts, so
-      // either option triggers the shared (single) batched fetch.
-      if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
-        loadTagCounts();
-      }
-
-      if (cfg.value.fetchPostInfo) {
-        await fetchPostsInfo();
-      }
-
-      // Delayed call to findSimilar, as fetchPostInfo might change the post's contentUrl.
-      enableAutoSearch.value = true;
-      if (cfg.value.autoSearchSimilar) {
-        findSimilar(pop.selectedPost);
-      }
+      await populatePosts();
     }
   }
 
-  return { grabPost };
+  /**
+   * Picks up a context-menu grab stashed by the background. Returns true when
+   * the popup was populated from the stash; false when there is nothing usable,
+   * in which case the caller falls through to the normal tab grab. The stash
+   * key is removed only after the posts materialized, so a popup crash never
+   * loses a grab.
+   */
+  async function pickupStashedGrab(): Promise<boolean> {
+    let stored: any;
+    try {
+      stored = (await browser.storage.local.get(STASH_KEY))[STASH_KEY];
+    } catch (ex) {
+      console.error("Reading the context grab stash failed:", ex);
+      return false;
+    }
+
+    if (!stored?.scrapeResults) {
+      return false;
+    }
+
+    if (typeof stored.grabbedAt != "number" || Date.now() - stored.grabbedAt > STASH_TTL_MS) {
+      await browser.storage.local.remove(STASH_KEY);
+      return false;
+    }
+
+    try {
+      // Same prototype rehydration as the tab grab path: storage JSON-serializes
+      // the class instances away.
+      const scrapeResults = Object.assign(new ScrapeResults(), stored.scrapeResults);
+      // Materialize before touching the store: a deterministically bad stash
+      // must never block popup opens.
+      const posts = materializeScrapeResults(scrapeResults);
+      pop.posts.splice(0);
+      pop.posts.push(...posts);
+    } catch (ex) {
+      console.error("Materializing the stashed grab failed:", ex);
+      await browser.storage.local.remove(STASH_KEY);
+      return false;
+    }
+
+    await browser.storage.local.remove(STASH_KEY);
+
+    if (pop.posts.length > 0) {
+      await populatePosts();
+    }
+
+    return true;
+  }
+
+  return { grabPost, pickupStashedGrab };
 }
 
 async function getSelectedTabIds(): Promise<number[]> {
