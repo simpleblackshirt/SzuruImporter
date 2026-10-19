@@ -133,9 +133,10 @@ function onResolutionLoaded(res: any) {
 onMounted(async () => {
   if (pop.posts.length == 0) {
     // A context-menu grab stashed by the background takes precedence over the
-    // active-tab auto-grab; a failed/stale pickup falls through to grabPost().
+    // active-tab auto-grab; "failed" shows the error banner instead, and only
+    // "none" (nothing stashed) falls through to grabPost().
     const picked = await pickupStashedGrab();
-    if (!picked) {
+    if (picked == "none") {
       grabPost();
     }
   }
@@ -191,6 +192,10 @@ useDark();
 
       <div v-if="instanceSpecificData?.genericError" class="bg-danger">
         <span>{{ instanceSpecificData.genericError }}</span>
+      </div>
+
+      <div v-if="pop.contextGrabError" class="bg-danger">
+        <span>{{ pop.contextGrabError }}</span>
       </div>
 
       <!--

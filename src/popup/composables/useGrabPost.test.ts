@@ -82,21 +82,35 @@ describe("pickupStashedGrab", () => {
 
     const picked = await pickupStashedGrab();
 
-    expect(picked).toBe(true);
+    expect(picked).toBe("picked");
     expect(pop.posts).toHaveLength(1);
     expect(pop.posts[0].name).toBe("[twitter] Post 1");
     expect(pop.selectedPostId).toBe(pop.posts[0].id);
+    expect(pop.contextGrabError).toBeUndefined();
     expect(testCtx.browserStub.storage.local.remove).toHaveBeenCalledWith("contextGrabStash");
   });
 
-  it("returns false when there is no stash", async () => {
+  it("returns 'none' when there is no stash", async () => {
     const { pop, pickupStashedGrab } = await makeComposable();
 
     const picked = await pickupStashedGrab();
 
-    expect(picked).toBe(false);
+    expect(picked).toBe("none");
     expect(pop.posts).toHaveLength(0);
     expect(testCtx.browserStub.storage.local.remove).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a failure record as the banner and does not grab the tab", async () => {
+    const { pop, pickupStashedGrab } = await makeComposable();
+    const stash = { grabbedAt: Date.now(), targetUrl: "https://x.com/status/123", error: "No post found under the right-clicked element." };
+    testCtx.browserStub.storage.local.get.mockResolvedValue({ contextGrabStash: stash });
+
+    const picked = await pickupStashedGrab();
+
+    expect(picked).toBe("failed");
+    expect(pop.contextGrabError).toBe("No post found under the right-clicked element.");
+    expect(pop.posts).toHaveLength(0);
+    expect(testCtx.browserStub.storage.local.remove).toHaveBeenCalledWith("contextGrabStash");
   });
 
   it("discards a stash older than the ttl", async () => {
@@ -110,7 +124,7 @@ describe("pickupStashedGrab", () => {
 
     const picked = await pickupStashedGrab();
 
-    expect(picked).toBe(false);
+    expect(picked).toBe("none");
     expect(testCtx.browserStub.storage.local.remove).toHaveBeenCalledWith("contextGrabStash");
   });
 
@@ -122,7 +136,7 @@ describe("pickupStashedGrab", () => {
 
     const picked = await pickupStashedGrab();
 
-    expect(picked).toBe(false);
+    expect(picked).toBe("none");
     expect(pop.posts).toHaveLength(0);
     expect(testCtx.browserStub.storage.local.remove).toHaveBeenCalledWith("contextGrabStash");
   });
@@ -133,7 +147,7 @@ describe("pickupStashedGrab", () => {
 
     const picked = await pickupStashedGrab();
 
-    expect(picked).toBe(false);
+    expect(picked).toBe("none");
     expect(testCtx.browserStub.storage.local.remove).not.toHaveBeenCalled();
   });
 });

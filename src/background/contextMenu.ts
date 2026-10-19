@@ -7,11 +7,29 @@ const MENU_ID = "szuru-grab-element";
 const STASH_KEY = "contextGrabStash";
 
 /**
- * storage key + pickup contract shared with the popup (useGrabPost.pickupStashedGrab):
- * { grabbedAt: number, targetUrl: string, scrapeResults: <plain JSON ScrapeResults> },
- * single slot - a new grab overwrites an unpicked one, the popup removes the key
- * after materializing it.
+ * storage.local contract shared with the popup (useGrabPost.pickupStashedGrab):
+ * success: { grabbedAt, targetUrl, scrapeResults: <plain JSON ScrapeResults> },
+ * failure: { grabbedAt, targetUrl, error }.
+ * Single slot - a new grab overwrites an unpicked one, the popup removes the
+ * key after consuming it. Failures are surfaced INSIDE the popup (no
+ * notifications by design), so a failed grab auto-opens the popup too.
  */
+
+/**
+ * Whether the popup can be auto-opened after a grab. The context menu only
+ * exists where this holds: without auto-open there is no way to surface a
+ * grab (notifications are not used), so the feature stays absent entirely.
+ */
+async function openPopupSupported(): Promise<boolean> {
+  // Chromium: the manifest floor (127) is where action.openPopup became stable.
+  if (typeof browser.runtime.getBrowserInfo !== "function") {
+    return true;
+  }
+  // Firefox: openPopup exists before 149 but only works from 149 on.
+  const info = await browser.runtime.getBrowserInfo();
+  const major = parseInt(info.version.split(".")[0], 10);
+  return major >= 149;
+}
 
 /**
  * documentUrlPatterns restricting the menu to hosts scraped by our engines, so
@@ -33,6 +51,9 @@ function documentUrlPatterns(): string[] {
 /** (Re)creates the menu item; idempotent across reloads and SW wakes. */
 async function registerContextMenu() {
   await browser.contextMenus.removeAll();
+  if (!(await openPopupSupported())) {
+    return;
+  }
   browser.contextMenus.create({
     id: MENU_ID,
     title: "Send to szuru",
@@ -62,20 +83,22 @@ async function grabElement(info: Menus.OnClickData, tabId: number): Promise<Grab
   }
 }
 
-function notify(title: string, message: string) {
-  browser.notifications.create({
-    type: "basic",
-    iconUrl: browser.runtime.getURL("assets/icon-128.png"),
-    title,
-    message,
+async function stashGrab(value: Record<string, unknown>) {
+  await browser.storage.local.set({
+    [STASH_KEY]: { grabbedAt: Date.now(), ...value },
   });
 }
 
-/**
- * There is deliberately no whole-document fallback here: scraping the entire
- * visible page (a whole timeline) into the stash on a stray click would be
- * wrong. Whole-page grabbing remains the popup's job.
- */
+async function openPopupForGrab() {
+  try {
+    // Supported browsers only (menu is gated on this) - a rejection here is
+    // still swallowed so a gesture hiccup cannot produce an unhandled error.
+    await browser.action.openPopup();
+  } catch (ex) {
+    console.log("action.openPopup failed:", ex);
+  }
+}
+
 async function dispatchGrab(info: Menus.OnClickData, tab?: Tabs.Tab) {
   if (info.menuItemId != MENU_ID || !tab?.id) {
     return;
@@ -83,37 +106,20 @@ async function dispatchGrab(info: Menus.OnClickData, tab?: Tabs.Tab) {
 
   const grabbed = await grabElement(info, tab.id);
 
-  // Tier-1 media-URL rewrites (srcUrl/linkUrl) land between these two steps.
   // Count via results: scrapeResults crossed the message boundary as plain
   // JSON, so the ScrapeResults.posts getter does not exist here.
   const scrapeResults: ScrapeResults | undefined = grabbed.status == "ok" ? grabbed.scrapeResults : undefined;
   const postCount = (scrapeResults?.results ?? []).reduce((sum, result) => sum + (result.posts?.length ?? 0), 0);
 
   if (postCount == 0) {
-    notify("Grab failed", "Right-click inside a post to grab it for szuru.");
+    // Open the popup and let it claim the failure via the banner.
+    await stashGrab({ targetUrl: info.pageUrl ?? "", error: "No post found under the right-clicked element." });
+    await openPopupForGrab();
     return;
   }
 
-  await browser.storage.local.set({
-    [STASH_KEY]: {
-      grabbedAt: Date.now(),
-      targetUrl: info.pageUrl ?? "",
-      // The result crossed a message boundary, so this is plain JSON - exactly
-      // the shape the popup's pickup reconstructs via Object.assign.
-      scrapeResults,
-    },
-  });
-
-  notify("Grabbed for szuru", `${postCount} post(s) grabbed - open the popup to review.`);
-
-  try {
-    // Chromium >= 127, Firefox >= 149. Older Firefox has no openPopup (or
-    // rejects without a usable gesture) - the notification already tells the
-    // user to open the popup, which picks the stash up on open.
-    await browser.action.openPopup();
-  } catch (ex) {
-    console.log("action.openPopup unavailable, open the popup manually:", ex);
-  }
+  await stashGrab({ targetUrl: info.pageUrl ?? "", scrapeResults });
+  await openPopupForGrab();
 }
 
 function onInstalledOrStartup() {

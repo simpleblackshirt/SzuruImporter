@@ -6,7 +6,13 @@ import { materializeScrapeResults } from "./materialize";
 
 export { FALLBACK_UPLOAD_AS_URL_NAME } from "./materialize";
 
-/** storage.local key + value contract shared with the background (contextMenu.ts). */
+/**
+ * storage.local key + value contract shared with the background (contextMenu.ts):
+ * success: { grabbedAt, targetUrl, scrapeResults: <plain JSON ScrapeResults> },
+ * failure: { grabbedAt, targetUrl, error: string }.
+ * Single slot - a new grab overwrites an unpicked one, the popup removes the
+ * key after consuming it.
+ */
 const STASH_KEY = "contextGrabStash";
 /** Unpicked grabs older than this are discarded at pickup. */
 const STASH_TTL_MS = 5 * 60 * 1000;
@@ -86,28 +92,41 @@ export function useGrabPost(deps: GrabPostDeps) {
   }
 
   /**
-   * Picks up a context-menu grab stashed by the background. Returns true when
-   * the popup was populated from the stash; false when there is nothing usable,
-   * in which case the caller falls through to the normal tab grab. The stash
-   * key is removed only after the posts materialized, so a popup crash never
-   * loses a grab.
+   * Picks up a context-menu stash written by the background. Returns:
+   * - "picked": posts materialized into the popup,
+   * - "failed": the grab failed; the error banner is shown instead (the tab
+   *   auto-grab must NOT run - the user aimed at a post, not at the page),
+   * - "none": nothing usable, caller falls through to the tab grab.
+   * The stash key is removed once consumed, so a popup crash never loses a grab.
    */
-  async function pickupStashedGrab(): Promise<boolean> {
+  async function pickupStashedGrab(): Promise<"picked" | "failed" | "none"> {
     let stored: any;
     try {
       stored = (await browser.storage.local.get(STASH_KEY))[STASH_KEY];
     } catch (ex) {
       console.error("Reading the context grab stash failed:", ex);
-      return false;
+      return "none";
     }
 
-    if (!stored?.scrapeResults) {
-      return false;
+    if (!stored) {
+      return "none";
     }
 
     if (typeof stored.grabbedAt != "number" || Date.now() - stored.grabbedAt > STASH_TTL_MS) {
       await browser.storage.local.remove(STASH_KEY);
-      return false;
+      return "none";
+    }
+
+    // Failure record: the background opened the popup to show exactly this.
+    if (stored.error) {
+      pop.contextGrabError = stored.error;
+      await browser.storage.local.remove(STASH_KEY);
+      return "failed";
+    }
+
+    if (!stored.scrapeResults) {
+      await browser.storage.local.remove(STASH_KEY);
+      return "none";
     }
 
     try {
@@ -122,7 +141,7 @@ export function useGrabPost(deps: GrabPostDeps) {
     } catch (ex) {
       console.error("Materializing the stashed grab failed:", ex);
       await browser.storage.local.remove(STASH_KEY);
-      return false;
+      return "none";
     }
 
     await browser.storage.local.remove(STASH_KEY);
@@ -131,7 +150,7 @@ export function useGrabPost(deps: GrabPostDeps) {
       await populatePosts();
     }
 
-    return true;
+    return "picked";
   }
 
   return { grabPost, pickupStashedGrab };
