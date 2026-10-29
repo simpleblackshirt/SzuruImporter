@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
-import { sharedConfig } from "./vite.config";
-import { isDev, r } from "./scripts/utils";
-import packageJson from "./package.json";
+import { sharedConfig } from "./vite.config.ts";
+import { isDev, r } from "./scripts/utils.ts";
+import packageJson from "./package.json" with { type: "json" };
 
 // MV3 background bundle: must be ONE self-contained classic script because the dual
 // {scripts, service_worker} manifest pattern (src/manifest.ts) loads the same file as a
