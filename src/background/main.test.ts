@@ -18,11 +18,17 @@ const testCtx = vi.hoisted(() => {
     },
     action: { openPopup: vi.fn().mockResolvedValue(undefined) },
     notifications: { onClicked: { addListener: vi.fn() }, create: vi.fn(), clear: vi.fn() },
+    contextMenus: {
+      removeAll: vi.fn().mockResolvedValue(undefined),
+      create: vi.fn(),
+      onClicked: { addListener: vi.fn() },
+    },
     tabs: {
       TAB_ID_NONE: -1,
       create: vi.fn(),
       remove: vi.fn().mockResolvedValue(undefined),
       executeScript: vi.fn().mockResolvedValue([]),
+      sendMessage: vi.fn(),
     },
     webRequest: { onBeforeSendHeaders: { addListener: addOnBeforeSendHeadersListener } },
     declarativeNetRequest: { updateSessionRules },

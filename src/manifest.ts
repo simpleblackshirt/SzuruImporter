@@ -38,7 +38,7 @@ export async function getManifest() {
       service_worker: backgroundScript,
     } as Manifest.WebExtensionManifest["background"],
     // MV3 splits host permissions out of `permissions`.
-    permissions: ["storage", "activeTab", "notifications", "declarativeNetRequest"],
+    permissions: ["storage", "activeTab", "notifications", "declarativeNetRequest", "contextMenus"],
     host_permissions: ["<all_urls>"],
     content_scripts: [
       {

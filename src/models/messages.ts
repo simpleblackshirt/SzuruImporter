@@ -1,6 +1,7 @@
 import type { UpdatePostRequest } from "~/api/models";
 import type { SzuruSiteConfig } from "./config";
 import type { ScrapedPostDetails } from "./post";
+import type { ScrapeResults } from "neo-scraper";
 
 export type PostUploadState = "uploading" | "uploaded" | "error";
 
@@ -17,6 +18,7 @@ export class PostUploadInfo {
 
 export type BrowserCommandName =
   | "grab_post"
+  | "grab_post_element"
   | "upload_post"
   | "set_post_upload_info"
   | "set_exact_post_id"
@@ -31,6 +33,28 @@ export class BrowserCommand<T = any> {
   constructor(name: BrowserCommandName, data?: T) {
     this.name = name;
     this.data = data;
+  }
+}
+
+/** Payload of the grab_post_element command (Firefox element resolution). */
+export class GrabPostElementCommandData {
+  constructor(public readonly targetElementId?: number) {}
+}
+
+export type GrabElementStatus = "ok" | "no-container" | "no-element" | "unsupported-site";
+
+/**
+ * Response of the content script to a grab_post_element command. Crossing the
+ * message boundary JSON-serializes it (and the ScrapeResults) down to plain
+ * objects - the background stash and the popup pickup rely on that shape.
+ */
+export class GrabElementResult {
+  status: GrabElementStatus;
+  scrapeResults?: ScrapeResults;
+
+  constructor(status: GrabElementStatus, scrapeResults?: ScrapeResults) {
+    this.status = status;
+    this.scrapeResults = scrapeResults;
   }
 }
 

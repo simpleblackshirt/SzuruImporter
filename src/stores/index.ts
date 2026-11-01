@@ -76,6 +76,8 @@ export const usePopupStore = defineStore("popup", {
     posts: [] as ScrapedPostDetails[],
     selectedPostId: undefined as string | undefined,
     isSearchingForSimilarPosts: 0,
+    /** Failure message of a picked-up context-menu grab, shown as a banner. */
+    contextGrabError: undefined as string | undefined,
   }),
   getters: {
     selectedPost: (state) => {

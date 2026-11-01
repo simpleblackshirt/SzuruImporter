@@ -34,7 +34,7 @@ const szuru = computed(() => {
 const { isSearchingForSimilarPosts, enableAutoSearch, findSimilar, clickFindSimilar } = useSimilarSearch(szuru);
 const { loadTagCounts } = useTagCounts(szuru);
 const { fetchPostsInfo } = useContentInfo(pop.posts);
-const { grabPost } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
+const { grabPost, pickupStashedGrab } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
 const { upload } = useUpload({ szuru, selectedSite });
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
@@ -130,9 +130,15 @@ function onResolutionLoaded(res: any) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (pop.posts.length == 0) {
-    grabPost();
+    // A context-menu grab stashed by the background takes precedence over the
+    // active-tab auto-grab; "failed" shows the error banner instead, and only
+    // "none" (nothing stashed) falls through to grabPost().
+    const picked = await pickupStashedGrab();
+    if (picked == "none") {
+      grabPost();
+    }
   }
 });
 
@@ -186,6 +192,10 @@ useDark();
 
       <div v-if="instanceSpecificData?.genericError" class="bg-danger">
         <span>{{ instanceSpecificData.genericError }}</span>
+      </div>
+
+      <div v-if="pop.contextGrabError" class="bg-danger">
+        <span>{{ pop.contextGrabError }}</span>
       </div>
 
       <!--

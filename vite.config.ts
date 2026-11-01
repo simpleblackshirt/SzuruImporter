@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 import Vue from "@vitejs/plugin-vue";
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
-import { isDev, port, r } from "./scripts/utils";
+import { isDev, port, r } from "./scripts/utils.ts";
 
 export const sharedConfig: UserConfig = {
   root: r("src"),
@@ -17,6 +17,15 @@ export const sharedConfig: UserConfig = {
   },
   define: {
     __DEV__: isDev,
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        // Silence deprecation warnings from dependencies (primeflex still uses
+        // deprecated @import/global built-ins); our own SCSS keeps its warnings.
+        quietDeps: true,
+      },
+    },
   },
   plugins: [
     Vue(),

@@ -2,11 +2,38 @@
 // Theme is intentionally not configured - components are styled by hand here.
 
 .p-tabs {
+  // PrimeVue's styled-mode chrome (borders, rings, active-bar) fights the
+  // hand styling here - strip it to restore the flat pre-migration TabView
+  // look: plain text tabs, active tab tinted with --tab-color.
+  .p-tablist,
+  .p-tablist-tab-list,
+  .p-tab,
+  .p-tabpanels,
+  .p-tabpanel {
+    background: none;
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
   .p-tablist-tab-list {
+    background: none;
+    border: none;
+    outline: none;
+    box-shadow: none;
+  }
+
+  // The tablist clips its content (scrollable tabs), so margins on the inner
+  // tab-list collapse away inside it - spacing goes on the tablist itself.
+  .p-tablist {
     margin: 1em 0;
   }
 
   .p-tab {
+    // Undo the global 30px button height: it fights the 2.3em line box and
+    // shifts the text and the active tint out of alignment.
+    height: auto;
+    color: var(--text-color);
     padding: 0 1.2em;
     line-height: 2.3em;
 
@@ -14,6 +41,11 @@
     &[data-p-active="true"] {
       background-color: var(--tab-color);
     }
+  }
+
+  // The active state is the background tint - no underline indicator.
+  .p-tablist-active-bar {
+    display: none;
   }
 }
 
