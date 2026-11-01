@@ -2,9 +2,18 @@ import type { Menus, Tabs } from "webextension-polyfill";
 import type { ScrapeResults } from "neo-scraper";
 import { BrowserCommand, GrabElementResult, GrabPostElementCommandData } from "~/models";
 import { siteAdapters } from "~/sites";
+import { rewriteMediaUrl } from "./mediaRewrites";
 
 const MENU_ID = "szuru-grab-element";
 const STASH_KEY = "contextGrabStash";
+
+/**
+ * Media CDN hosts of the tier-A sites. Not page hosts, so they are absent
+ * from the site adapters - but right-clicking a raw CDN image (e.g. a
+ * pbs.twimg.com url opened in its own tab) must still offer the menu so the
+ * tier-1 rewrite resolvers can handle it.
+ */
+const mediaCdnHosts = ["pbs.twimg.com", "sinaimg.cn", "lf127.net", "cdn.bsky.app"];
 
 /**
  * storage.local contract shared with the popup (useGrabPost.pickupStashedGrab):
@@ -39,11 +48,9 @@ async function openPopupSupported(): Promise<boolean> {
  */
 function documentUrlPatterns(): string[] {
   const patterns = new Set<string>();
-  for (const adapter of siteAdapters) {
-    for (const host of adapter.hosts) {
-      patterns.add(`*://${host}/*`);
-      patterns.add(`*://*.${host}/*`);
-    }
+  for (const host of [...siteAdapters.flatMap((adapter) => adapter.hosts), ...mediaCdnHosts]) {
+    patterns.add(`*://${host}/*`);
+    patterns.add(`*://*.${host}/*`);
   }
   return [...patterns];
 }
@@ -112,6 +119,16 @@ async function dispatchGrab(info: Menus.OnClickData, tab?: Tabs.Tab) {
   const postCount = (scrapeResults?.results ?? []).reduce((sum, result) => sum + (result.posts?.length ?? 0), 0);
 
   if (postCount == 0) {
+    // Tier-1 rewrites: raw CDN media URLs (element grab found nothing - e.g.
+    // the image was opened in its own tab). Matching produces ONE post, stashed
+    // as a regular success.
+    const rewritten = rewriteMediaUrl(info.srcUrl ?? info.linkUrl, info.pageUrl ?? "");
+    if (rewritten) {
+      await stashGrab({ targetUrl: info.srcUrl ?? info.linkUrl ?? info.pageUrl ?? "", scrapeResults: rewritten });
+      await openPopupForGrab();
+      return;
+    }
+
     // Open the popup and let it claim the failure via the banner.
     await stashGrab({ targetUrl: info.pageUrl ?? "", error: "No post found under the right-clicked element." });
     await openPopupForGrab();

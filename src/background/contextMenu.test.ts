@@ -250,3 +250,96 @@ describe("grab dispatch", () => {
     expect(testCtx.browserStub.storage.local.set).not.toHaveBeenCalled();
   });
 });
+
+describe("menu media CDN hosts", () => {
+  it("extends documentUrlPatterns with the tier-A media CDN hosts", async () => {
+    const { onInstalled } = await initMenu();
+
+    onInstalled();
+    await flush();
+
+    const [props] = testCtx.browserStub.contextMenus.create.mock.calls[0];
+    const patterns: string[] = props.documentUrlPatterns;
+    // Raw CDN images opened in their own tab must offer the menu so the
+    // rewrite tier can handle them.
+    expect(patterns).toContain("*://pbs.twimg.com/*");
+    expect(patterns).toContain("*://*.sinaimg.cn/*");
+    expect(patterns).toContain("*://*.lf127.net/*");
+    expect(patterns).toContain("*://cdn.bsky.app/*");
+  });
+});
+
+describe("rewrite tier (fallback after a failed element grab)", () => {
+  const tab = { id: 42 };
+  const pbsSrc = "https://pbs.twimg.com/media/abc123?format=jpg&name=small";
+
+  const stash = () => testCtx.browserStub.storage.local.set.mock.calls[0][0].contextGrabStash;
+
+  it("stashes the rewritten post as a success when the element grab finds nothing", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "no-container" });
+    const { onClicked } = await initMenu();
+
+    await onClicked(clickInfo({ srcUrl: pbsSrc }), tab);
+
+    expect(testCtx.browserStub.storage.local.set).toHaveBeenCalledTimes(1);
+    const stashed = stash();
+    expect(stashed.error).toBeUndefined();
+    expect(stashed.targetUrl).toBe(pbsSrc);
+    expect(stashed.scrapeResults.results[0].engine).toBe("twitter");
+    expect(stashed.scrapeResults.results[0].posts[0].contentUrl).toBe(pbsSrc.replace("name=small", "name=orig"));
+    expect(stashed.scrapeResults.results[0].posts[0].uploadMode).toBe("content");
+    expect(testCtx.browserStub.action.openPopup).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves the rewrite tier when the content script is unreachable (raw CDN tab)", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockRejectedValue(new Error("Receiving end does not exist."));
+    const { onClicked } = await initMenu();
+
+    // On a pbs.twimg.com tab the page url IS the media url - the rewritten
+    // post must not carry it as pageUrl.
+    await onClicked(clickInfo({ srcUrl: pbsSrc, pageUrl: pbsSrc }), tab);
+
+    const stashed = stash();
+    expect(stashed.error).toBeUndefined();
+    expect(stashed.scrapeResults.results[0].posts[0].pageUrl).toBe("");
+  });
+
+  it("falls back to linkUrl when no srcUrl is present", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "no-element" });
+    const { onClicked } = await initMenu();
+
+    await onClicked(clickInfo({ linkUrl: "https://wx1.sinaimg.cn/mw2000/abc/def.jpg" }), tab);
+
+    const stashed = stash();
+    expect(stashed.error).toBeUndefined();
+    expect(stashed.scrapeResults.results[0].engine).toBe("weibo");
+    expect(stashed.scrapeResults.results[0].posts[0].contentUrl).toBe("https://wx1.sinaimg.cn/large/abc/def.jpg");
+  });
+
+  it("terminates in the failure banner when the target matches no rewrite", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "unsupported-site" });
+    const { onClicked } = await initMenu();
+
+    await onClicked(clickInfo({ srcUrl: "https://example.com/cat.jpg" }), tab);
+
+    const stashed = stash();
+    expect(stashed.error).toBe("No post found under the right-clicked element.");
+    expect(stashed.scrapeResults).toBeUndefined();
+    expect(testCtx.browserStub.action.openPopup).toHaveBeenCalledTimes(1);
+  });
+
+  it("only runs after a failed element grab, never instead of it", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue(grabbedResponse);
+    const { onClicked } = await initMenu();
+
+    await onClicked(clickInfo({ srcUrl: pbsSrc }), tab);
+
+    // Element grab ran and won: the stash holds the element's results, and the
+    // content script was consulted exactly once.
+    expect(testCtx.browserStub.tabs.sendMessage).toHaveBeenCalledTimes(1);
+    const stashed = stash();
+    expect(stashed.error).toBeUndefined();
+    expect(stashed.scrapeResults.results[0].posts[0]).toEqual(grabbedPost);
+    expect(testCtx.browserStub.storage.local.set).toHaveBeenCalledTimes(1);
+  });
+});
