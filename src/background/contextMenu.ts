@@ -2,7 +2,7 @@ import type { Menus, Tabs } from "webextension-polyfill";
 import type { ScrapeResults } from "neo-scraper";
 import { BrowserCommand, GrabElementResult, GrabPostElementCommandData } from "~/models";
 import { siteAdapters } from "~/sites";
-import { rewriteMediaUrl } from "./mediaRewrites";
+import { rewriteMediaUrl } from "~/sites/mediaRewrites";
 
 const MENU_ID = "szuru-grab-element";
 const STASH_KEY = "contextGrabStash";

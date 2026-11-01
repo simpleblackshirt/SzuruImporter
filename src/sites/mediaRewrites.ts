@@ -6,16 +6,18 @@ import {
   upgradeSinaImageUrl,
   upgradeToOriginalQuality,
 } from "neo-scraper";
-import { adapterForUrl } from "~/sites";
+import { adapterForUrl } from "./index";
 
 /**
- * Fallback tier-1: media-URL rewrite resolvers. Reached when the element grab
- * produced nothing but the click carried a media URL (info.srcUrl/linkUrl) -
- * typically a raw CDN image opened in its own tab, where no post container
- * exists in the DOM. Pure URL transforms, no network: each resolver produces
- * ONE metadata-less post (a CDN URL carries no artist/tags), matching the
- * engine whose scrape- URL space it belongs to. Nothing matching -> undefined,
- * which terminates the grab in the error banner.
+ * Fallback tier-1: media-URL rewrite resolvers for raw CDN media urls.
+ * Reached from two grab paths that both hit a CDN url with no post
+ * container in the DOM: the background's context-menu tier (element grab
+ * found nothing but the click carried info.srcUrl/linkUrl) and the content
+ * script's document grab on a raw CDN image opened in its own tab. Pure URL
+ * transforms, no network: each resolver produces ONE metadata-less post (a
+ * CDN URL carries no artist/tags), matching the engine whose scrape- URL
+ * space it belongs to. Nothing matching -> undefined, which leaves the grab
+ * to the caller's own fallback.
  */
 
 /** True when hostname is `host` itself or any subdomain of it. */

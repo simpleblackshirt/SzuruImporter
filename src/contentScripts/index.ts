@@ -1,5 +1,6 @@
 import { NeoScraper, ScrapeResults } from "neo-scraper";
 import { BrowserCommand, GrabElementResult } from "~/models";
+import { rewriteMediaUrl } from "~/sites/mediaRewrites";
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
 (() => {
@@ -45,6 +46,17 @@ import { BrowserCommand, GrabElementResult } from "~/models";
   );
 
   function grabPost(): ScrapeResults {
+    // Raw CDN media page (e.g. a pbs.twimg.com url opened in its own tab):
+    // no site engine claims the location and the fallback engine would emit
+    // a bare, un-upgraded post. Prefer the same tier-1 rewrites the
+    // background's context-menu tier uses, so both grab paths agree on CDN
+    // urls. The canImport guard keeps site engines authoritative elsewhere.
+    if (!scraper.engines.some((engine) => engine.canImport(document.location))) {
+      const rewritten = rewriteMediaUrl(document.location.href, document.location.href);
+      if (rewritten) {
+        return rewritten;
+      }
+    }
     return scraper.scrapeDocument(document, true);
   }
 

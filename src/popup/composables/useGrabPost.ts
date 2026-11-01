@@ -69,7 +69,16 @@ export function useGrabPost(deps: GrabPostDeps) {
     const scrapeResults: ScrapeResults = new ScrapeResults();
     for (const selectedTabId of selectedTabIds) {
       // Send 'grab_post' to the content script on the active tabs
-      const x = await browser.tabs.sendMessage(selectedTabId, new BrowserCommand("grab_post"));
+      let x: any;
+      try {
+        x = await browser.tabs.sendMessage(selectedTabId, new BrowserCommand("grab_post"));
+      } catch (ex) {
+        // A highlighted tab without a content script (chrome://, a page from
+        // before the extension loaded, ...) must not discard the other
+        // tabs' results - skip it and keep grabbing.
+        console.error("grab_post failed on tab", selectedTabId, ex);
+        continue;
+      }
       // We need to create a new ScrapeResults object and fill it with our data, because the get_posts()
       // method gets 'lost' when sent from the contentscript to the popup (it gets JSON.stringified and any prototype defines are lost there)
       const results: ScrapeResults = Object.assign(new ScrapeResults(), x);
