@@ -1,5 +1,5 @@
 import axios, { AxiosRequestConfig, CancelToken } from "axios";
-import { isEqual } from "lodash";
+import { isEqual } from "es-toolkit";
 import {
   TagsResult,
   TagCategoriesResult,

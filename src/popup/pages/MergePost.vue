@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { cloneDeep } from "lodash";
+import { cloneDeep } from "es-toolkit";
 import SzurubooruApi from "~/api";
 import { Post } from "~/api/models";
 import { isMobile } from "~/env";
@@ -225,7 +225,7 @@ onMounted(async () => {
         <div style="display: flex; flex-direction: column; gap: 5px">
           <div style="display: flex; gap: 5px">
             <button class="bg-danger" @click="router.back()">
-              <font-awesome-icon icon="fa-solid fa-chevron-left" class="cursor-pointer" @click="undefined" />
+              <AppIcon name="chevron-left" class="cursor-pointer" @click="undefined" />
               Back
             </button>
             <div class="section-header full">

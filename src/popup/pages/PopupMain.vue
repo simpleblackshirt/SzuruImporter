@@ -292,7 +292,7 @@ useDark();
       <PopupSection>
         <template #header>
           <span>Basic info</span>
-          <font-awesome-icon icon="fa-solid fa-cog" class="cursor-pointer" @click="openOptionsPage" />
+          <AppIcon name="cog" class="cursor-pointer" @click="openOptionsPage" />
         </template>
 
         <div class="section-row" v-if="pop.selectedPost?.resolution || pop.selectedPost?.contentSize">
@@ -397,7 +397,7 @@ useDark();
 
   <div v-else class="p-3 flex items-center gap-3">
     <span>No content found</span>
-    <font-awesome-icon icon="fa-solid fa-cog" class="cursor-pointer" @click="openOptionsPage" />
+    <AppIcon name="cog" class="cursor-pointer" @click="openOptionsPage" />
   </div>
 </template>
 

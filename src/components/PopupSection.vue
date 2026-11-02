@@ -26,8 +26,8 @@ defineEmits(["update:modelValue"]);
       <slot name="header">
         <span>{{ props.header }}</span>
         <template v-if="props.toggleable">
-          <font-awesome-icon v-show="props.modelValue" icon="fa-solid fa-chevron-up" class="cursor-pointer" />
-          <font-awesome-icon v-show="!props.modelValue" icon="fa-solid fa-chevron-down" class="cursor-pointer" />
+          <AppIcon v-show="props.modelValue" name="chevron-up" class="cursor-pointer" />
+          <AppIcon v-show="!props.modelValue" name="chevron-down" class="cursor-pointer" />
         </template>
       </slot>
     </div>

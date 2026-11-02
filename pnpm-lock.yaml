@@ -17,15 +17,15 @@ importers:
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
-      lodash:
-        specifier: ^4.18.1
-        version: 4.18.1
+      es-toolkit:
+        specifier: ^1.53.1
+        version: 1.53.1
       markdown-it:
         specifier: ^15.0.2
         version: 15.0.2
       neo-scraper:
         specifier: github:simpleblackshirt/neo-scraper#master
-        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896
+        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/72b937b58cf32b20cf1838ac99942abb1a5499ae
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3))
@@ -42,24 +42,12 @@ importers:
       '@ffflorian/jszip-cli':
         specifier: ^3.16.10
         version: 3.16.10
-      '@fortawesome/fontawesome-svg-core':
-        specifier: ^7.3.1
-        version: 7.3.1
-      '@fortawesome/free-solid-svg-icons':
-        specifier: ^7.3.1
-        version: 7.3.1
-      '@fortawesome/vue-fontawesome':
-        specifier: ^3.3.3
-        version: 3.3.3(@fortawesome/fontawesome-svg-core@7.3.1)(vue@3.5.44(typescript@5.9.3))
       '@types/byte-size':
         specifier: ^8.1.2
         version: 8.1.2
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
-      '@types/lodash':
-        specifier: ^4.17.26
-        version: 4.17.26
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
@@ -489,24 +477,6 @@ packages:
   '@fluent/syntax@0.19.0':
     resolution: {integrity: sha512-5D2qVpZrgpjtqU4eNOcWGp1gnUCgjfM+vKGE2y03kKN6z5EBhtx0qdRFbg8QuNNj8wXNoX93KJoYb+NqoxswmQ==}
     engines: {node: '>=14.0.0', npm: '>=7.0.0'}
-
-  '@fortawesome/fontawesome-common-types@7.3.1':
-    resolution: {integrity: sha512-k0C0sdHmZtAo6dRDtd1Z/qcpyHbL0CKsjV8seMY/21xGhY5Wsv0XRmiI/xEEH4y2c9b1+jvgNs/3EqhV27yUEA==}
-    engines: {node: '>=6'}
-
-  '@fortawesome/fontawesome-svg-core@7.3.1':
-    resolution: {integrity: sha512-BoxVN3PKnMbgStHhjoaky/oWdxHomDqmBVA24IA3KEmssFGeI7u9YT/BJceOjIum/t6TpPa/vcMKaVYQeIQ/3Q==}
-    engines: {node: '>=6'}
-
-  '@fortawesome/free-solid-svg-icons@7.3.1':
-    resolution: {integrity: sha512-v0BLa0eqg7ubvVWeNSHVBs8fWH/GJicERZoJaxJ3FE/lj67VSqzoMg9pzfZVOfLMX10y0pGwQAuxoRVVH2patg==}
-    engines: {node: '>=6'}
-
-  '@fortawesome/vue-fontawesome@3.3.3':
-    resolution: {integrity: sha512-Jbjze98gGcVBSdkscLbnDlHECumMAFVWDarMtycctn9qL3p92ApnV36VW4PwVrcm9IWrHnnE6ZL9x7MXStSCfA==}
-    peerDependencies:
-      '@fortawesome/fontawesome-svg-core': ~1 || ~6 || ~7
-      vue: '>= 3.0.0 < 4'
 
   '@fregante/relaxed-json@2.0.0':
     resolution: {integrity: sha512-PyUXQWB42s4jBli435TDiYuVsadwRHnMc27YaLouINktvTWsL3FcKrRMGawTayFk46X+n5bE23RjUTWQwrukWw==}
@@ -967,9 +937,6 @@ packages:
 
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
-
-  '@types/lodash@4.17.26':
-    resolution: {integrity: sha512-48NWfiY6oNcKOh47Z4h+sIvwcQR91h6KPhaYKgeMIrkT2jV82Gy90SErj60vW8jQbeMSOSbhIv3bZ7JoqPPVhA==}
 
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
@@ -1680,6 +1647,9 @@ packages:
   es-to-primitive@1.3.4:
     resolution: {integrity: sha512-yPDz7wqpg1/mmHLmS3tcfTfbw5f1eryXvyghYBffGdERwe+mV7ZcWzTR8LR17Kvqt3qfPurjlonmnq3MKXIOXw==}
     engines: {node: '>= 0.4'}
+
+  es-toolkit@1.53.1:
+    resolution: {integrity: sha512-VhMc6IXmexu8iYFfL2aaAww6IvJTdHlqBLruLoEUs33YD4IcP5DdZcLOybMsMmmLsiy1c8PsiLsrM0DdIuuRUA==}
 
   es6-error@4.1.1:
     resolution: {integrity: sha512-Um/+FxMr9CISWh0bi5Zv0iOD+4cFh5qLeks1qhAopKVAJw3drgKbKySikp7wGhDL0HPeaja0P5ULZrxLkniUVg==}
@@ -2456,9 +2426,6 @@ packages:
   lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
 
-  lodash@4.18.1:
-    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
-
   logdown@3.3.1:
     resolution: {integrity: sha512-pjX0vlIJsYQlgVzFba2amXI1wZZnhrEorL68MdLI7B0/sN1TNUozBNFaHfcPHMM3A+INZ0OXFDxtnoaEgOmGjQ==}
 
@@ -2543,9 +2510,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896:
-    resolution: {gitHosted: true, integrity: sha512-APfVtfNDAR23Y3JS++AIFXsBkaHk6APKwjIlihjPsSxJg7xtlqDuhXpyGBtLTDBri2tfStUCtTMhD+WjQO+1pg==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896}
-    version: 0.12.0
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/72b937b58cf32b20cf1838ac99942abb1a5499ae:
+    resolution: {gitHosted: true, integrity: sha512-0uyB32G2dew7RwOfjYljRTJRAbxws4+6cmm3/gpznhdH+rm7+F88wvoaOJST5egSpKiRP0TQN1wKmWvk7YtFXQ==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/72b937b58cf32b20cf1838ac99942abb1a5499ae}
+    version: 0.13.0
 
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
@@ -3846,21 +3813,6 @@ snapshots:
 
   '@fluent/syntax@0.19.0': {}
 
-  '@fortawesome/fontawesome-common-types@7.3.1': {}
-
-  '@fortawesome/fontawesome-svg-core@7.3.1':
-    dependencies:
-      '@fortawesome/fontawesome-common-types': 7.3.1
-
-  '@fortawesome/free-solid-svg-icons@7.3.1':
-    dependencies:
-      '@fortawesome/fontawesome-common-types': 7.3.1
-
-  '@fortawesome/vue-fontawesome@3.3.3(@fortawesome/fontawesome-svg-core@7.3.1)(vue@3.5.44(typescript@5.9.3))':
-    dependencies:
-      '@fortawesome/fontawesome-svg-core': 7.3.1
-      vue: 3.5.44(typescript@5.9.3)
-
   '@fregante/relaxed-json@2.0.0': {}
 
   '@humanfs/core@0.19.2':
@@ -4174,8 +4126,6 @@ snapshots:
   '@types/jsonfile@6.1.4':
     dependencies:
       '@types/node': 24.19.2
-
-  '@types/lodash@4.17.26': {}
 
   '@types/minimatch@3.0.5': {}
 
@@ -5032,6 +4982,8 @@ snapshots:
       is-date-object: 1.1.0
       is-symbol: 1.1.1
 
+  es-toolkit@1.53.1: {}
+
   es6-error@4.1.1: {}
 
   esbuild@0.28.2:
@@ -5850,8 +5802,6 @@ snapshots:
 
   lodash.once@4.1.1: {}
 
-  lodash@4.18.1: {}
-
   logdown@3.3.1:
     dependencies:
       chalk: 2.4.2
@@ -5931,7 +5881,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896:
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/72b937b58cf32b20cf1838ac99942abb1a5499ae:
     dependencies:
       js-cookie: 3.0.8
       turndown: 7.2.4

@@ -61,13 +61,23 @@ export async function getManifest() {
         id: `{${process.env.SZ_GECKO_ID}}`,
         // 127.0 Firefox floor (mv3-facts W1): MV3 host_permissions + dual background usable
         // since 121-127; openPopup (109+) is gesture-gated before 149 and wave 3 ships a
-        // try/catch review-tab fallback, so 149 is not a hard requirement.
+        // try/catch review-tab fallback, so 149 is not a hard requirement. Floors document
+        // the true technical minimum (Chromium keeps 127 the same way), not a
+        // supported-browser policy.
         strict_min_version: "127.0",
+        // Firefox 140+ built-in data consent (AMO validator requirement). The extension
+        // collects nothing - all traffic goes to the user's own szurubooru instance.
+        // Firefox < 140 ignores this subkey harmlessly (and with "none" there is no
+        // consent UI to gate regardless); the informational
+        // KEY_FIREFOX*_UNSUPPORTED_BY_MIN_VERSION lint warnings are accepted.
+        data_collection_permissions: { required: ["none"] },
       },
       gecko_android: {
         strict_min_version: "127.0",
       },
-    };
+      // @types/webextension-polyfill predates data_collection_permissions; excess-property
+      // check on the gecko literal needs the same kind of cast as the background key above.
+    } as Manifest.WebExtensionManifest["browser_specific_settings"];
 
     // Firefox MV3 keeps blocking webRequest (mv3-facts W1) - the referer
     // listeners auto-revive via the hasWebRequestBlocking() runtime gate.

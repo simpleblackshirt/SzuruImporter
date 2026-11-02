@@ -1,4 +1,4 @@
-import { cloneDeep } from "lodash";
+import { cloneDeep } from "es-toolkit";
 import type { ComputedRef } from "vue";
 import SzurubooruApi from "~/api";
 import { BrowserCommand, PostUploadCommandData, ScrapedPostDetails, SzuruSiteConfig } from "~/models";

@@ -93,6 +93,14 @@ describe("MV3 manifest (chromium variant, production)", () => {
 
     expect(manifest.browser_specific_settings).toBeUndefined();
   });
+
+  it("should not declare data_collection_permissions for the chromium variant", async () => {
+    // Key only exists under gecko; Firefox 140+ ignores/needs it there.
+    const manifest = await getManifestUnder({ NODE_ENV: "production" });
+
+    const gecko = manifest.browser_specific_settings?.gecko as any;
+    expect(gecko?.data_collection_permissions).toBeUndefined();
+  });
 });
 
 describe("MV3 manifest (gecko variant)", () => {
@@ -104,6 +112,16 @@ describe("MV3 manifest (gecko variant)", () => {
     expect(gecko.id).toBe("{some-uuid}");
     expect(gecko.strict_min_version).toBe("127.0");
     expect(geckoAndroid.strict_min_version).toBe("127.0");
+  });
+
+  it("should declare no-data-collection consent for the AMO validator", async () => {
+    // AMO warning: "/browser_specific_settings/gecko/data_collection_permissions" is
+    // required for new Firefox extensions. The extension collects nothing. The floor
+    // stays at the technical minimum (127) - Firefox < 140 ignores the subkey.
+    const manifest = await getManifestUnder({ NODE_ENV: "production", SZ_GECKO_ID: "some-uuid" });
+
+    const gecko = manifest.browser_specific_settings?.gecko as any;
+    expect(gecko.data_collection_permissions).toEqual({ required: ["none"] });
   });
 
   it("should keep the Firefox-gated blocking webRequest permissions for the referer listeners", async () => {

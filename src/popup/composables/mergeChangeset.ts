@@ -1,4 +1,4 @@
-import { isEqual } from "lodash";
+import { isEqual } from "es-toolkit";
 import type { MicroTag, Post, Safety, UpdatePostRequest } from "~/api/models";
 import type { ScrapedPostDetails, TagDetails } from "~/models";
 import { mergeSources } from "~/utils";
