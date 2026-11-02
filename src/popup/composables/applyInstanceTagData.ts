@@ -8,8 +8,8 @@ import { resolveTagAliases } from "./resolveTagAliases";
  * instance's category when the scraped tag has none. The filled-in category
  * is what colors backend-known tags in the popup (see getTagClasses and the
  * dynamic `.tag-<category>` rules). A category scraped from the source site
- * wins, mirroring the upload flow which pushes scraped categories only onto
- * instance tags still in "default".
+ * wins, mirroring the upload flow which pushes scraped categories onto
+ * instance tags still in the instance's default category.
  *
  * When `resolveAliases` is set, tags are renamed to the instance's primary
  * name first (see resolveTagAliases) so enrichment matches on the resolved

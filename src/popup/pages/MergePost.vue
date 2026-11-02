@@ -50,13 +50,18 @@ function removeExistingTag(tag: TagDetails) {
 }
 
 function addTag(tag: TagDetails) {
-  // Only add tag if it doesn't already exist
-  if (
-    tag.name.length > 0 &&
-    tagsToAdd.find((x) => x.name == tag.name) == undefined &&
-    post.value.tags.find((x) => x.names.indexOf(tag.name) != -1) == undefined
-  ) {
-    pushTagWithImplications(tagsToAdd, tag, cfg.value.addTagImplications);
+  if (tag.name.length > 0) {
+    // pushTagWithImplications skips the tag and each implication that the
+    // predicate reports as present: either already queued in tagsToAdd or
+    // already on the post's existing tags.
+    pushTagWithImplications(
+      tagsToAdd,
+      tag,
+      cfg.value.addTagImplications,
+      (candidate) =>
+        tagsToAdd.some((x) => x.name == candidate.name) ||
+        post.value.tags.some((x) => x.names.indexOf(candidate.name) != -1),
+    );
   }
 }
 
@@ -122,7 +127,7 @@ async function mergeChanges() {
     info: { state: "uploading", instancePostId: existingPostRo.id },
   });
 
-  const cmdData = new PostUpdateCommandData(existingPostRo.id, req, szuruConfig);
+  const cmdData = new PostUpdateCommandData(existingPostRo.id, req, szuruConfig, cloneDeep(tagsToAdd));
   const cmd = new BrowserCommand("update_post", cmdData);
   await browser.runtime.sendMessage(cmd);
 }

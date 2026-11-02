@@ -4,12 +4,12 @@ import {
   TagsResult,
   TagCategoriesResult,
   Post,
-  Tag,
   SzuruError,
   ImageSearchResult,
   TagFields,
   TemporaryFileUploadResult,
   UpdatePostRequest,
+  UpdateTagRequest,
   PoolsResult,
   PoolFields,
   Pool,
@@ -56,8 +56,8 @@ export default class SzurubooruApi {
     return (await this.apiGet("post/" + id)).data;
   }
 
-  async updateTag(tag: Tag): Promise<any> {
-    return (await this.apiPut("tag/" + encodeURIComponent(tag.names[0]), tag)).data;
+  async updateTag(name: string, updateRequest: UpdateTagRequest): Promise<any> {
+    return (await this.apiPut("tag/" + encodeURIComponent(name), updateRequest)).data;
   }
 
   async updatePost(id: number, updateRequest: UpdatePostRequest): Promise<Post> {

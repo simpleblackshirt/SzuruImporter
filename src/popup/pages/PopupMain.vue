@@ -101,11 +101,10 @@ function getActiveSitePostUrl(postId: number): string {
 }
 
 function addTag(tag: TagDetails) {
-  if (pop.selectedPost) {
-    // Only add tag if it doesn't already exist
-    if (tag.name.length > 0 && pop.selectedPost.tags.find((x) => x.name == tag.name) == undefined) {
-      pushTagWithImplications(pop.selectedPost.tags, tag, cfg.value.addTagImplications);
-    }
+  if (pop.selectedPost && tag.name.length > 0) {
+    // The default exists-check of pushTagWithImplications covers the tag and
+    // its implications against the post's tag list.
+    pushTagWithImplications(pop.selectedPost.tags, tag, cfg.value.addTagImplications);
   }
 }
 
@@ -230,7 +229,7 @@ useDark();
           instanceSpecificData.uploadState?.updateTagsState?.current == undefined
         "
       >
-        <span>{{ instanceSpecificData.uploadState?.updateTagsState?.total }} tags need a different category</span>
+        <span>{{ instanceSpecificData.uploadState?.updateTagsState?.total }} tags need an update</span>
       </div>
 
       <div

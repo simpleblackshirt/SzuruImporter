@@ -9,8 +9,10 @@ import {
   PostUpdateCommandData,
   FetchCommandData,
 } from "~/models";
-import { PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/models";
+import { MicroTag, PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/models";
 import SzurubooruApi from "~/api";
+import { candidateTagNames, computeTagUpdates } from "./tagFixup";
+import type { ScrapedTagInfo } from "./tagFixup";
 import { registerDnrRefererRules } from "~/webRequest/dnrReferer";
 import { hasWebRequestBlocking, isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
 import "./contextMenu";
@@ -30,6 +32,44 @@ browser.notifications.onClicked.addListener((url) => {
     browser.notifications.clear(url);
   }
 });
+
+type UpdateTagsState = PostUploadInfo["updateTagsState"];
+
+/**
+ * Syncs scraped tag data onto the szuru tags of a post: scraped categories are
+ * applied to tags still in the instance's default category, and artist profile
+ * urls are merged into the tag descriptions. Returns how many tags were
+ * examined and how many actually changed.
+ */
+async function applyTagFixup(
+  szuru: SzurubooruApi,
+  scrapedTags: ScrapedTagInfo[],
+  postTags: MicroTag[],
+  onProgress?: (state: UpdateTagsState) => void,
+): Promise<{ total: number; changed: number }> {
+  const candidateNames = candidateTagNames(scrapedTags, postTags);
+  if (candidateNames.length == 0) {
+    return { total: 0, changed: 0 };
+  }
+
+  onProgress?.({ total: candidateNames.length });
+
+  const tags = (await szuru.getTags(candidateNames.map(encodeTagName).join())).results;
+  const categories = (await szuru.getTagCategories()).results;
+  const updates = computeTagUpdates(tags, scrapedTags, categories);
+
+  let current = 0;
+  for (const update of updates) {
+    onProgress?.({ total: candidateNames.length, current: ++current });
+    await szuru.updateTag(update.name, {
+      version: update.version,
+      category: update.category,
+      description: update.description,
+    });
+  }
+
+  return { total: candidateNames.length, changed: updates.length };
+}
 
 async function uploadPost(data: PostUploadCommandData) {
   const info: PostUploadInfo = {
@@ -60,47 +100,19 @@ async function uploadPost(data: PostUploadCommandData) {
     info.instancePostId = createdPost.id;
     pushInfo();
 
-    // Find tags with "default" category and update it
-    // TODO: Make all these categories configurable
-    const tagsWithCategory = data.post.tags.filter((x) => x.category);
-    const unsetCategoryTags = createdPost.tags
-      .filter((x) => x.category == "default")
-      .filter((x) => tagsWithCategory.some((y) => x.names.includes(y.names[0])));
-
-    if (unsetCategoryTags.length != 0) {
-      info.updateTagsState = {
-        total: unsetCategoryTags.length,
-      };
+    // Sync scraped tag categories and artist profile urls onto the szuru tags.
+    // New tags are created by szurubooru in its DEFAULT category (whatever the
+    // instance named it), so the categories need fixing afterwards.
+    const fixup = await applyTagFixup(szuru, data.post.tags, createdPost.tags, (state) => {
+      info.updateTagsState = state;
       pushInfo();
+    });
 
-      // unsetCategoryTags is of type MicroTag[] and we need a Tag resource to update it, so let's get those
-      const query = unsetCategoryTags.map((x) => encodeTagName(x.names[0])).join();
-      const tags = (await szuru.getTags(query)).results;
-      const existingCategories = (await szuru.getTagCategories()).results;
-      let categoriesChangedCount = 0;
-
-      for (const i in tags) {
-        info.updateTagsState.current = parseInt(i);
-        pushInfo();
-
-        const wantedCategory = tagsWithCategory.find((x) => tags[i].names.includes(x.names[0]))?.category;
-        if (wantedCategory) {
-          if (existingCategories.some((x) => x.name == wantedCategory)) {
-            tags[i].category = wantedCategory;
-            await szuru.updateTag(tags[i]);
-            categoriesChangedCount++;
-          } else {
-            console.log(
-              `Not adding the '${wantedCategory}' category to the tag '${tags[i].names[0]}' because the szurubooru instance does not have this category.`,
-            );
-          }
-        }
-      }
-
-      if (categoriesChangedCount > 0) {
-        info.updateTagsState.totalChanged = categoriesChangedCount;
-        pushInfo();
-      }
+    if (fixup.changed > 0) {
+      info.updateTagsState = { total: fixup.total, totalChanged: fixup.changed };
+      pushInfo();
+    } else {
+      info.updateTagsState = undefined;
     }
 
     // TODO: This code shouldn't all be in the same try catch.
@@ -175,7 +187,21 @@ async function updatePost(data: PostUpdateCommandData) {
 
     pushInfo();
 
-    await szuru.updatePost(data.postId, data.updateRequest);
+    const updatedPost = await szuru.updatePost(data.postId, data.updateRequest);
+
+    // The merge may have added tags to the post - sync scraped categories and
+    // profile urls onto them, same as the upload flow does.
+    const fixup = await applyTagFixup(szuru, data.scrapedTags, updatedPost.tags, (state) => {
+      info.updateTagsState = state;
+      pushInfo();
+    });
+
+    if (fixup.changed > 0) {
+      info.updateTagsState = { total: fixup.total, totalChanged: fixup.changed };
+      pushInfo();
+    } else {
+      info.updateTagsState = undefined;
+    }
 
     info.state = "uploaded";
     pushInfo();

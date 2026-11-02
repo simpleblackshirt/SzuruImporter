@@ -30,7 +30,7 @@ export function resolveTagAliases(tags: TagDetails[], instanceTags: Tag[]): TagD
     let next = tag;
     if (primary !== undefined && primary !== tag.name) {
       // Rewritten tags are fresh instances so the input stays untouched.
-      next = new TagDetails([primary], tag.category, tag.usages);
+      next = new TagDetails([primary], tag.category, tag.usages, tag.profileUrl);
       next.implications = tag.implications;
     }
 

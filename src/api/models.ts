@@ -143,6 +143,18 @@ export interface UpdatePostRequest {
   contentToken: string | undefined;
 }
 
+/**
+ * Only the fields this extension changes on a tag. szurubooru reads
+ * suggestions/implications as string lists, so echoing the full Tag resource
+ * back (which serializes them as objects) would fail the update - and fields
+ * that are sent trigger their own edit-privilege checks.
+ */
+export interface UpdateTagRequest {
+  version: number;
+  category?: string;
+  description?: string;
+}
+
 export interface UpdatePoolRequest {
   version: number;
   // names?: string[];

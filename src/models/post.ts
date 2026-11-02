@@ -9,6 +9,7 @@ export class TagDetails {
     public names: string[],
     public category?: string,
     public usages?: number,
+    public profileUrl?: string,
   ) {}
 
   get name() {
@@ -30,7 +31,7 @@ export class TagDetails {
   }
 
   static fromScapedTag(tag: ScrapedTag): TagDetails {
-    return new TagDetails([tag.name], tag.category);
+    return new TagDetails([tag.name], tag.category, undefined, tag.profileUrl);
   }
 }
 

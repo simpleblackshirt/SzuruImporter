@@ -1,6 +1,6 @@
 import type { UpdatePostRequest } from "~/api/models";
 import type { SzuruSiteConfig } from "./config";
-import type { ScrapedPostDetails } from "./post";
+import type { ScrapedPostDetails, TagDetails } from "./post";
 import type { ScrapeResults } from "neo-scraper";
 
 export type PostUploadState = "uploading" | "uploaded" | "error";
@@ -87,6 +87,11 @@ export class PostUpdateCommandData {
     public readonly postId: number,
     public readonly updateRequest: UpdatePostRequest,
     public readonly selectedSite: SzuruSiteConfig,
+    /**
+     * Scraped tags the merge adds to the post, so the background can sync
+     * their categories and profile urls after the update (see applyTagFixup).
+     */
+    public readonly scrapedTags: TagDetails[] = [],
   ) {}
 }
 
