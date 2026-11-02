@@ -24,8 +24,8 @@ importers:
         specifier: ^15.0.2
         version: 15.0.2
       neo-scraper:
-        specifier: file:..\neo-scraper
-        version: file:../neo-scraper
+        specifier: github:simpleblackshirt/neo-scraper#master
+        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3))
@@ -2543,8 +2543,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  neo-scraper@file:../neo-scraper:
-    resolution: {directory: ../neo-scraper, type: directory}
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896:
+    resolution: {gitHosted: true, integrity: sha512-APfVtfNDAR23Y3JS++AIFXsBkaHk6APKwjIlihjPsSxJg7xtlqDuhXpyGBtLTDBri2tfStUCtTMhD+WjQO+1pg==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896}
+    version: 0.12.0
 
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
@@ -5930,7 +5931,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  neo-scraper@file:../neo-scraper:
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/ea0171945676fb9fdc6fa02f2477af0917b6d896:
     dependencies:
       js-cookie: 3.0.8
       turndown: 7.2.4

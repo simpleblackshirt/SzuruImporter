@@ -36,7 +36,7 @@
     "deepmerge": "^4.3.1",
     "lodash": "^4.18.1",
     "markdown-it": "^15.0.2",
-    "neo-scraper": "file:..\\neo-scraper",
+    "neo-scraper": "github:simpleblackshirt/neo-scraper#master",
     "pinia": "^4.1.0",
     "primeflex": "^4.0.0",
     "primevue": "^5.0.2",
