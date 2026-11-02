@@ -45,7 +45,7 @@ const grabbedResponse = {
 };
 
 const clickInfo = (overrides: Record<string, unknown> = {}) => ({
-  menuItemId: "szuru-grab-element",
+  menuItemId: "szuru-grab-page",
   pageUrl: "https://x.com/someone/status/123",
   frameId: 0,
   ...overrides,
@@ -63,7 +63,9 @@ async function initMenu() {
 }
 
 const firefox = (version: string) => {
-  testCtx.browserStub.runtime.getBrowserInfo = vi.fn().mockResolvedValue({ name: "Firefox", vendor: "Mozilla", version });
+  testCtx.browserStub.runtime.getBrowserInfo = vi
+    .fn()
+    .mockResolvedValue({ name: "Firefox", vendor: "Mozilla", version });
 };
 
 beforeEach(() => {
@@ -75,33 +77,41 @@ beforeEach(() => {
 });
 
 describe("menu registration", () => {
-  it("removes and creates the menu item on install (Chromium)", async () => {
+  it("removes and creates the menu items on install (Chromium)", async () => {
     const { onInstalled } = await initMenu();
 
     onInstalled();
     await flush();
 
     expect(testCtx.browserStub.contextMenus.removeAll).toHaveBeenCalledTimes(1);
-    expect(testCtx.browserStub.contextMenus.create).toHaveBeenCalledTimes(1);
-    const [props] = testCtx.browserStub.contextMenus.create.mock.calls[0];
-    expect(props.id).toBe("szuru-grab-element");
-    expect(props.title).toBe("Send to szuru");
+    expect(testCtx.browserStub.contextMenus.create).toHaveBeenCalledTimes(2);
+
+    // Disjoint contexts: exactly one row can show per click on both engines.
+    const [mediaProps] = testCtx.browserStub.contextMenus.create.mock.calls[0];
+    expect(mediaProps.id).toBe("szuru-grab-media");
+    expect(mediaProps.title).toBe("Send to szuru");
+    expect(mediaProps.contexts).toEqual(["image", "video", "link"]);
+    expect(mediaProps.documentUrlPatterns).toBeUndefined();
+
+    const [pageProps] = testCtx.browserStub.contextMenus.create.mock.calls[1];
+    expect(pageProps.id).toBe("szuru-grab-page");
+    expect(pageProps.title).toBe("Send to szuru");
     // "page" is required: the model is right-clicking the post container,
     // which for a tweet's text area is the page context, not image/link.
-    expect(props.contexts).toEqual(["image", "video", "link", "page"]);
+    expect(pageProps.contexts).toEqual(["page"]);
   });
 
-  it("creates the menu on Firefox 149+", async () => {
+  it("creates the menus on Firefox 149+", async () => {
     firefox("149.0");
     const { onInstalled } = await initMenu();
 
     onInstalled();
     await flush();
 
-    expect(testCtx.browserStub.contextMenus.create).toHaveBeenCalledTimes(1);
+    expect(testCtx.browserStub.contextMenus.create).toHaveBeenCalledTimes(2);
   });
 
-  it("does not create the menu below Firefox 149 (openPopup is gesture-gated)", async () => {
+  it("does not create the menus below Firefox 149 (openPopup is gesture-gated)", async () => {
     firefox("148.0");
     const { onInstalled } = await initMenu();
 
@@ -114,19 +124,23 @@ describe("menu registration", () => {
     expect(testCtx.browserStub.contextMenus.create).not.toHaveBeenCalled();
   });
 
-  it("restricts the menu to scraped adapter hosts", async () => {
+  it("restricts the page item to scraped adapter hosts", async () => {
     const { onInstalled } = await initMenu();
 
     onInstalled();
     await flush();
 
-    const [props] = testCtx.browserStub.contextMenus.create.mock.calls[0];
-    const patterns: string[] = props.documentUrlPatterns;
+    const [pageProps] = testCtx.browserStub.contextMenus.create.mock.calls[1];
+    const patterns: string[] = pageProps.documentUrlPatterns;
     // A non-exhaustive spot check across the registry (twitter, weibo, pixiv).
     expect(patterns).toContain("*://x.com/*");
     expect(patterns).toContain("*://*.twitter.com/*");
     expect(patterns).toContain("*://*.weibo.com/*");
     expect(patterns).toContain("*://*.pixiv.net/*");
+    // Raw CDN media belongs to the media item's image/video context, so the
+    // page item must not carry CDN hosts.
+    expect(patterns).not.toContain("*://pbs.twimg.com/*");
+    expect(patterns).not.toContain("*://*.sinaimg.cn/*");
     // And it must not blanket-match the whole web.
     expect(patterns).not.toContain("<all_urls>");
   });
@@ -244,6 +258,11 @@ describe("grab dispatch", () => {
       clickInfo({ menuItemId: "other-extension-item" }),
       tab,
     );
+    // Numeric ids (browser-generated uids) are not ours either.
+    await testCtx.browserStub.contextMenus.onClicked.addListener.mock.calls.at(-1)![0](
+      clickInfo({ menuItemId: 7 }),
+      tab,
+    );
     await testCtx.browserStub.contextMenus.onClicked.addListener.mock.calls.at(-1)![0](clickInfo(), undefined);
 
     expect(testCtx.browserStub.tabs.sendMessage).not.toHaveBeenCalled();
@@ -251,27 +270,28 @@ describe("grab dispatch", () => {
   });
 });
 
-describe("menu media CDN hosts", () => {
-  it("extends documentUrlPatterns with the tier-A media CDN hosts", async () => {
+describe("media item", () => {
+  it("offers every image/video/link on every site without host restrictions", async () => {
     const { onInstalled } = await initMenu();
 
     onInstalled();
     await flush();
 
-    const [props] = testCtx.browserStub.contextMenus.create.mock.calls[0];
-    const patterns: string[] = props.documentUrlPatterns;
-    // Raw CDN images opened in their own tab must offer the menu so the
-    // rewrite tier can handle them.
-    expect(patterns).toContain("*://pbs.twimg.com/*");
-    expect(patterns).toContain("*://*.sinaimg.cn/*");
-    expect(patterns).toContain("*://*.lf127.net/*");
-    expect(patterns).toContain("*://cdn.bsky.app/*");
+    const [mediaProps] = testCtx.browserStub.contextMenus.create.mock.calls[0];
+    // Unrestricted: images on unsupported sites, raw CDN media tabs (the
+    // tab's own <img> is the image context) and links everywhere must offer
+    // the menu so the element grab / rewrite tier can handle them.
+    expect(mediaProps.documentUrlPatterns).toBeUndefined();
+    expect(mediaProps.contexts).toEqual(["image", "video", "link"]);
   });
 });
 
 describe("rewrite tier (fallback after a failed element grab)", () => {
   const tab = { id: 42 };
   const pbsSrc = "https://pbs.twimg.com/media/abc123?format=jpg&name=small";
+  // Rewrite-tier clicks come from the media item (srcUrl/linkUrl targets).
+  const mediaClick = (overrides: Record<string, unknown> = {}) =>
+    clickInfo({ menuItemId: "szuru-grab-media", ...overrides });
 
   const stash = () => testCtx.browserStub.storage.local.set.mock.calls[0][0].contextGrabStash;
 
@@ -279,7 +299,7 @@ describe("rewrite tier (fallback after a failed element grab)", () => {
     testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "no-container" });
     const { onClicked } = await initMenu();
 
-    await onClicked(clickInfo({ srcUrl: pbsSrc }), tab);
+    await onClicked(mediaClick({ srcUrl: pbsSrc }), tab);
 
     expect(testCtx.browserStub.storage.local.set).toHaveBeenCalledTimes(1);
     const stashed = stash();
@@ -297,7 +317,7 @@ describe("rewrite tier (fallback after a failed element grab)", () => {
 
     // On a pbs.twimg.com tab the page url IS the media url - the rewritten
     // post must not carry it as pageUrl.
-    await onClicked(clickInfo({ srcUrl: pbsSrc, pageUrl: pbsSrc }), tab);
+    await onClicked(mediaClick({ srcUrl: pbsSrc, pageUrl: pbsSrc }), tab);
 
     const stashed = stash();
     expect(stashed.error).toBeUndefined();
@@ -308,7 +328,7 @@ describe("rewrite tier (fallback after a failed element grab)", () => {
     testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "no-element" });
     const { onClicked } = await initMenu();
 
-    await onClicked(clickInfo({ linkUrl: "https://wx1.sinaimg.cn/mw2000/abc/def.jpg" }), tab);
+    await onClicked(mediaClick({ linkUrl: "https://wx1.sinaimg.cn/mw2000/abc/def.jpg" }), tab);
 
     const stashed = stash();
     expect(stashed.error).toBeUndefined();
@@ -320,7 +340,21 @@ describe("rewrite tier (fallback after a failed element grab)", () => {
     testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "unsupported-site" });
     const { onClicked } = await initMenu();
 
-    await onClicked(clickInfo({ srcUrl: "https://example.com/cat.jpg" }), tab);
+    await onClicked(mediaClick({ srcUrl: "https://example.com/cat.jpg" }), tab);
+
+    const stashed = stash();
+    expect(stashed.error).toBe("No post found under the right-clicked element.");
+    expect(stashed.scrapeResults).toBeUndefined();
+    expect(testCtx.browserStub.action.openPopup).toHaveBeenCalledTimes(1);
+  });
+
+  it("dead-ends in the failure banner for links matching no rewrite (unrestricted link context)", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "unsupported-site" });
+    const { onClicked } = await initMenu();
+
+    // The accepted cost of the link context: a random link on an unsupported
+    // site offers the menu, and its page href matches no rewrite.
+    await onClicked(mediaClick({ linkUrl: "https://example.com/some/page" }), tab);
 
     const stashed = stash();
     expect(stashed.error).toBe("No post found under the right-clicked element.");
@@ -332,7 +366,7 @@ describe("rewrite tier (fallback after a failed element grab)", () => {
     testCtx.browserStub.tabs.sendMessage.mockResolvedValue(grabbedResponse);
     const { onClicked } = await initMenu();
 
-    await onClicked(clickInfo({ srcUrl: pbsSrc }), tab);
+    await onClicked(mediaClick({ srcUrl: pbsSrc }), tab);
 
     // Element grab ran and won: the stash holds the element's results, and the
     // content script was consulted exactly once.

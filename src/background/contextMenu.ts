@@ -4,16 +4,32 @@ import { BrowserCommand, GrabElementResult, GrabPostElementCommandData } from "~
 import { siteAdapters } from "~/sites";
 import { rewriteMediaUrl } from "~/sites/mediaRewrites";
 
-const MENU_ID = "szuru-grab-element";
+const MENU_TITLE = "Send to szuru";
+const MEDIA_MENU_ID = "szuru-grab-media";
+const PAGE_MENU_ID = "szuru-grab-page";
+const MENU_IDS: ReadonlySet<string> = new Set([MEDIA_MENU_ID, PAGE_MENU_ID]);
 const STASH_KEY = "contextGrabStash";
 
 /**
- * Media CDN hosts of the tier-A sites. Not page hosts, so they are absent
- * from the site adapters - but right-clicking a raw CDN image (e.g. a
- * pbs.twimg.com url opened in its own tab) must still offer the menu so the
- * tier-1 rewrite resolvers can handle it.
+ * Two items whose visibility is provably disjoint, so exactly one row can
+ * ever show per click - checked against both engines' matchers (Chromium's
+ * ExtensionContextAndPatternMatch, Firefox's menus enabledForContext +
+ * getMenuContexts):
+ * - "page" only applies to clicks with no link/selection/editable/media
+ *   target, so the media and page items can never match the same click.
+ * - "link" lives INSIDE the media item rather than in a separate one: a
+ *   linked image (every booru thumbnail) reports {image, link} at once, so a
+ *   separate link-context item would duplicate the row whenever the media
+ *   item is also visible. Folded in, the menu shows on every link of every
+ *   site - on supported sites the element grab still resolves the post
+ *   container, elsewhere links usually dead-end in the failure banner
+ *   (accepted cost).
+ * - Deliberately NO targetUrlPatterns: Firefox hides pattern-bearing items on
+ *   page-context clicks (there is no target URL to match) and matches linked
+ *   images via srcUrl OR href, while Chromium checks href only for links and
+ *   never consults the patterns for page - the same item definition would
+ *   behave differently per engine.
  */
-const mediaCdnHosts = ["pbs.twimg.com", "sinaimg.cn", "lf127.net", "cdn.bsky.app"];
 
 /**
  * storage.local contract shared with the popup (useGrabPost.pickupStashedGrab):
@@ -41,32 +57,43 @@ async function openPopupSupported(): Promise<boolean> {
 }
 
 /**
- * documentUrlPatterns restricting the menu to hosts scraped by our engines, so
- * the item only exists on pages some engine could handle. `*://*.host/*` also
- * matches the bare host per match-pattern semantics; both forms are emitted
- * for parity with the site adapter host lists.
+ * documentUrlPatterns of the page item, restricting it to hosts scraped by
+ * our engines, so the item only exists on pages some engine could handle.
+ * `*://*.host/*` also matches the bare host per match-pattern semantics; both
+ * forms are emitted for parity with the site adapter host lists. Raw CDN
+ * media (e.g. a pbs.twimg.com url opened in its own tab) needs no entry here:
+ * the media item's image/video context covers it without host restrictions.
  */
 function documentUrlPatterns(): string[] {
   const patterns = new Set<string>();
-  for (const host of [...siteAdapters.flatMap((adapter) => adapter.hosts), ...mediaCdnHosts]) {
+  for (const host of siteAdapters.flatMap((adapter) => adapter.hosts)) {
     patterns.add(`*://${host}/*`);
     patterns.add(`*://*.${host}/*`);
   }
   return [...patterns];
 }
 
-/** (Re)creates the menu item; idempotent across reloads and SW wakes. */
+/** (Re)creates the menu items; idempotent across reloads and SW wakes. */
 async function registerContextMenu() {
   await browser.contextMenus.removeAll();
   if (!(await openPopupSupported())) {
     return;
   }
+  // Every image/video/link on every site: on supported sites the element grab
+  // resolves the post container (links included - a tag or timestamp link
+  // grabs its post); on unsupported sites and raw CDN media tabs the click
+  // falls through to the tier-1 rewrite tier instead.
   browser.contextMenus.create({
-    id: MENU_ID,
-    title: "Send to szuru",
-    // "page" matters: the user's model is right-clicking the post container
-    // (e.g. a tweet's text area), not only its images or links.
-    contexts: ["image", "video", "link", "page"],
+    id: MEDIA_MENU_ID,
+    title: MENU_TITLE,
+    contexts: ["image", "video", "link"],
+  });
+  browser.contextMenus.create({
+    id: PAGE_MENU_ID,
+    title: MENU_TITLE,
+    // The user's model is right-clicking the post container (e.g. a tweet's
+    // text area), not only its media - that surface is the page context.
+    contexts: ["page"],
     documentUrlPatterns: documentUrlPatterns(),
   });
 }
@@ -107,7 +134,7 @@ async function openPopupForGrab() {
 }
 
 async function dispatchGrab(info: Menus.OnClickData, tab?: Tabs.Tab) {
-  if (info.menuItemId != MENU_ID || !tab?.id) {
+  if (typeof info.menuItemId != "string" || !MENU_IDS.has(info.menuItemId) || !tab?.id) {
     return;
   }
 
