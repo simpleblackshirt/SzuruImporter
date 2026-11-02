@@ -23,11 +23,11 @@ runs:
         echo VITE_SZ_VERSION="${{ steps.version.outputs.AssemblySemFileVer }}" >> $GITHUB_ENV
         echo VITE_SZ_VERSION_INFO="${{ steps.version.outputs.InformationalVersion }}" >> $GITHUB_ENV
 
-    - uses: pnpm/action-setup@v2
+    - uses: pnpm/action-setup@v4
       name: Install pnpm
       id: pnpm-install
       with:
-        version: 9
+        version: 12
         run_install: false
 
     - uses: actions/setup-node@v3
