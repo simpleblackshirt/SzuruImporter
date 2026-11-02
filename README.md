@@ -40,6 +40,22 @@ Firefox: `about:debugging` → "Load Temporary Add-on..." → Select `./extensio
 > `pnpm build` produces the **gecko** variant (gecko id + `webRequestBlocking`). For a clean Chromium build,
 > shadow it: `$env:SZ_GECKO_ID=''; pnpm build`. CI/packaging for Chrome must do the same.
 
+### Local neo-scraper development
+
+`neo-scraper` is installed from GitHub (`github:simpleblackshirt/neo-scraper#master`) and pinned by commit in `pnpm-lock.yaml`. To develop against a local checkout:
+
+```sh
+pnpm link ../neo-scraper   # node_modules/neo-scraper now points at the sibling checkout
+pnpm build                 # embeds your local dist (keep it fresh: pnpm build / pnpm watch in neo-scraper)
+pnpm unlink neo-scraper    # before committing anything here
+```
+
+While linked, pnpm records an `overrides` entry in `pnpm-workspace.yaml`/`pnpm-lock.yaml` which must never be committed — the pre-commit hook blocks such commits (bypass with `--no-verify` if ever truly intended). Hooks are not active on fresh clones; activate them with:
+
+```sh
+git config core.hooksPath .githooks
+```
+
 ### Development & hot reload (MV3)
 
 `pnpm dev` starts three things at once:

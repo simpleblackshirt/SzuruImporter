@@ -1,0 +1,20 @@
+#!/bin/sh
+# Blocks commits carrying a "pnpm link" override (e.g. a locally linked
+# neo-scraper). Committing the override breaks CI: pnpm install
+# --frozen-lockfile would resolve the dependency to a local path that
+# does not exist on the runner.
+#
+# Activate after cloning: git config core.hooksPath .githooks
+
+pattern='^[[:space:]]*[^:]+:[[:space:]]*link:'
+if git show ":pnpm-workspace.yaml" 2>/dev/null | grep -qE "$pattern" || \
+   git show ":pnpm-lock.yaml" 2>/dev/null | grep -qE "$pattern"; then
+  echo "" >&2
+  echo "✖  commit blocked: pnpm link override found in staged files" >&2
+  echo "   linked dependencies must not be committed (CI installs from the lockfile)" >&2
+  echo "" >&2
+  echo "   fix:    pnpm unlink neo-scraper" >&2
+  echo "           git add pnpm-workspace.yaml pnpm-lock.yaml" >&2
+  echo "   bypass: git commit --no-verify (only if you really mean it)" >&2
+  exit 1
+fi
