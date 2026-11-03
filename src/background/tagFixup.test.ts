@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MicroTag, Tag, TagCategory } from "~/api/models";
 import { TagDetails } from "~/models";
 import { candidateTagNames, computeTagUpdates, withProfileUrl } from "./tagFixup";
+import type { ScrapedTagInfo } from "./tagFixup";
 
 function postTag(names: string[], category: string): MicroTag {
   return { names, category, usages: 0 };
@@ -41,6 +42,20 @@ describe("candidateTagNames", () => {
     const postTags = [postTag(["primary", "alias"], "default")];
 
     expect(candidateTagNames(scraped, postTags)).toEqual(["primary"]);
+  });
+
+  // Regression: in the background the scraped tags are plain objects -
+  // runtime messaging strips prototype members, so TagDetails' `name` getter
+  // is gone. Matching must use the `names` array (the old code matched on
+  // `name`, found nothing, and the whole fixup silently no-oped).
+  it("works with deserialized (getter-less) scraped tags", () => {
+    const scraped: ScrapedTagInfo[] = [
+      { names: ["artist_tag"], category: "artist", profileUrl: "https://x.com/artist" },
+      { names: ["plain"] },
+    ];
+    const postTags = [postTag(["artist_tag"], "default"), postTag(["plain"], "default")];
+
+    expect(candidateTagNames(scraped, postTags)).toEqual(["artist_tag"]);
   });
 });
 
@@ -157,6 +172,20 @@ describe("computeTagUpdates", () => {
 
     expect(computeTagUpdates(instanceTags, [categorizedOnly], categories)).toEqual([
       { name: "primary", version: 1, category: "artist" },
+    ]);
+  });
+
+  // Regression companion to the candidateTagNames deserialization case: the
+  // merge flow passes deserialized scraped tags through the same helper.
+  it("works with deserialized (getter-less) scraped tags", () => {
+    const categories = [category("general", true), category("artist")];
+    const instanceTags = [instanceTag(["artist_tag"], "general", 2, "bio")];
+    const scraped: ScrapedTagInfo[] = [
+      { names: ["artist_tag"], category: "artist", profileUrl: "https://x.com/artist" },
+    ];
+
+    expect(computeTagUpdates(instanceTags, scraped, categories)).toEqual([
+      { name: "artist_tag", version: 2, category: "artist", description: "bio\nhttps://x.com/artist" },
     ]);
   });
 });

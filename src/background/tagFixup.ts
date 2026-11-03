@@ -14,11 +14,15 @@ export interface TagUpdate {
 }
 
 /**
- * The scraped tag data the fixup needs (TagDetails satisfies this; the narrow
- * type keeps the pure helpers decoupled from the view model).
+ * The scraped tag data the fixup needs (TagDetails satisfies this structurally;
+ * the narrow type keeps the pure helpers decoupled from the view model).
+ * `names` is the array field, NOT the `name` getter: these tags arrive in the
+ * background via runtime messaging, which strips prototype members - `name`
+ * would be undefined here (see the "no getters after deserializing" notes
+ * elsewhere in the codebase).
  */
 export interface ScrapedTagInfo {
-  name: string;
+  names: string[];
   category?: string;
   profileUrl?: string;
 }
@@ -32,7 +36,7 @@ export function candidateTagNames(scrapedTags: ScrapedTagInfo[], postTags: Micro
   const relevant = scrapedTags.filter((x) => x.category || x.profileUrl);
   const names: string[] = [];
   for (const postTag of postTags) {
-    if (relevant.some((scraped) => postTag.names.includes(scraped.name))) {
+    if (relevant.some((scraped) => postTag.names.includes(scraped.names[0]))) {
       names.push(postTag.names[0]);
     }
   }
@@ -74,7 +78,7 @@ export function computeTagUpdates(
 
   const updates: TagUpdate[] = [];
   for (const instanceTag of instanceTags) {
-    const scraped = scrapedTags.find((x) => instanceTag.names.includes(x.name));
+    const scraped = scrapedTags.find((x) => instanceTag.names.includes(x.names[0]));
     if (!scraped) {
       continue;
     }
