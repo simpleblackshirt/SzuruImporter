@@ -1,6 +1,6 @@
 import { NeoScraper, ScrapeResults } from "neo-scraper";
 import { BrowserCommand, GrabElementResult } from "~/models";
-import { resolveGrabTarget } from "~/contentScripts/grabTarget";
+import { mediaSrcFromTarget, resolveGrabTarget } from "~/contentScripts/grabTarget";
 import { rewriteMediaUrl } from "~/sites/mediaRewrites";
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
@@ -15,11 +15,21 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
   // opens; it is the portable baseline for element-scoped grabs.
   let lastRightClicked: Element | undefined = undefined;
 
+  // The media url of the last right-clicked media element. Node identity is
+  // fragile on sites that re-render media around their own context menus
+  // (x.com swaps the image node when its media menu opens, and the native
+  // menu is only reachable on a second right-click whose target is the
+  // menu's overlay) - the url is the re-render-proof handle for resolving
+  // the target. Deliberately NOT cleared on non-media targets: the overlay
+  // right-click must not erase the image clicked before it.
+  let lastRightClickedMediaSrc: string | undefined = undefined;
+
   window.addEventListener(
     "contextmenu",
     (event) => {
       const target = event.target;
       lastRightClicked = target instanceof Element ? target : undefined;
+      lastRightClickedMediaSrc = mediaSrcFromTarget(target) ?? lastRightClickedMediaSrc;
     },
     true,
   );
@@ -61,7 +71,7 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
     return scraper.scrapeDocument(document, true);
   }
 
-  function grabPostElement(targetElementId?: number, srcUrl?: string): GrabElementResult {
+  function grabPostElement(targetElementId?: number): GrabElementResult {
     if (!scraper.engines.some((engine) => engine.canImport(document.location))) {
       return new GrabElementResult("unsupported-site");
     }
@@ -75,10 +85,28 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
     }
 
     // Sites re-render media around their own context menus (x.com swaps the
-    // image node when its media menu opens), which can leave both references
-    // disconnected - revive the target from the menu's media url. Failure
-    // keeps the caller's bail behavior (the rewrite tier / failure banner).
-    const resolved = resolveGrabTarget(element, srcUrl, document);
+    // image node when its media menu opens, and the native menu is only
+    // reachable on a second right-click onto the menu's overlay), which can
+    // leave both references disconnected - revive the target from the media
+    // url tracked at right-click time. Failure keeps the caller's bail
+    // behavior (the rewrite tier / failure banner).
+    const resolved = resolveGrabTarget(element, lastRightClickedMediaSrc, document);
+
+    // TEMP diagnostics for the x.com image-grab investigation - remove once confirmed working.
+    console.log(
+      "[szuru-grab] target resolution:",
+      JSON.stringify({
+        targetElementId: targetElementId ?? null,
+        trackedMediaSrc: lastRightClickedMediaSrc ?? null,
+        storedElement: lastRightClicked
+          ? { tag: lastRightClicked.tagName, connected: lastRightClicked.isConnected }
+          : null,
+        resolved: resolved
+          ? { tag: resolved.tagName, src: (resolved as HTMLImageElement).src || null }
+          : null,
+      }),
+    );
+
     if (!resolved) {
       return new GrabElementResult("no-element");
     }
@@ -112,7 +140,7 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
       case "grab_post":
         return grabPost();
       case "grab_post_element":
-        return grabPostElement(cmd.data?.targetElementId, cmd.data?.srcUrl);
+        return grabPostElement(cmd.data?.targetElementId);
     }
   }
 

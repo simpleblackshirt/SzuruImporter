@@ -104,10 +104,7 @@ async function registerContextMenu() {
  * else the content script's stored contextmenu target is used.
  */
 async function grabElement(info: Menus.OnClickData, tabId: number): Promise<GrabElementResult> {
-  const data =
-    info.targetElementId != undefined || info.srcUrl != undefined
-      ? new GrabPostElementCommandData(info.targetElementId, info.srcUrl)
-      : undefined;
+  const data = info.targetElementId != undefined ? new GrabPostElementCommandData(info.targetElementId) : undefined;
   const options = info.frameId != undefined ? { frameId: info.frameId } : undefined;
   try {
     const response = await browser.tabs.sendMessage(tabId, new BrowserCommand("grab_post_element", data), options);
