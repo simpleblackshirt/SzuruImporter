@@ -113,3 +113,4 @@ jobs:
         run: gh release create "$GITHUB_REF_NAME" --generate-notes release/*
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
