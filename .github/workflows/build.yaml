@@ -50,7 +50,7 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          SZ_GECKO_ID: f6d4bf83-7ee3-40c1-87b7-33e677459166
+          SZ_GECKO_ID: aafde385-b307-4a85-a493-aa7bd15c0ba5
 
       - name: Sign XPI
         run: pnpm sign:firefox --channel unlisted
@@ -84,7 +84,7 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          SZ_GECKO_ID: f6d4bf83-7ee3-40c1-87b7-33e677459166
+          SZ_GECKO_ID: aafde385-b307-4a85-a493-aa7bd15c0ba5
 
       - name: Sign XPI and upload to AMO
         run: pnpm sign:firefox --channel listed

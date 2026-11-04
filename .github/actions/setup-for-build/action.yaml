@@ -2,27 +2,6 @@ name: "Setup project"
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-dotnet@v3
-      with:
-        dotnet-version: "7.0.x"
-
-    - name: Install GitVersion
-      uses: gittools/actions/gitversion/setup@v0
-      with:
-        versionSpec: "5.x"
-
-    - name: Determine Version
-      uses: gittools/actions/gitversion/execute@v0
-      id: version
-      with:
-        useConfigFile: true
-
-    - name: Use the version
-      shell: bash
-      run: |
-        echo VITE_SZ_VERSION="${{ steps.version.outputs.AssemblySemFileVer }}" >> $GITHUB_ENV
-        echo VITE_SZ_VERSION_INFO="${{ steps.version.outputs.InformationalVersion }}" >> $GITHUB_ENV
-
     - uses: pnpm/action-setup@v4
       name: Install pnpm
       id: pnpm-install
@@ -32,10 +11,7 @@ runs:
 
     - uses: actions/setup-node@v3
       with:
-        # undici 8 (jsdom 30 / vitest 5) requires >=22.19 at import time
-        # (node:zlib.createZstdDecompress) - the ubuntu-24.04 image's
-        # preinstalled Node 20 crashes every test worker on startup.
-        node-version: "24"
+        node-version: "20"
         cache: "pnpm"
 
     - name: Install dependencies

@@ -16,7 +16,7 @@ export async function getManifest() {
   const manifest: Manifest.WebExtensionManifest = {
     name: pkg.displayName,
     description: pkg.description,
-    version: process.env.VITE_SZ_VERSION || pkg.version,
+    version: pkg.version,
     manifest_version: 3,
     icons: {
       16: "./assets/icon-16.png",
