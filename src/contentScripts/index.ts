@@ -91,22 +91,6 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
     // url tracked at right-click time. Failure keeps the caller's bail
     // behavior (the rewrite tier / failure banner).
     const resolved = resolveGrabTarget(element, lastRightClickedMediaSrc, document);
-
-    // TEMP diagnostics for the x.com image-grab investigation - remove once confirmed working.
-    console.log(
-      "[szuru-grab] target resolution:",
-      JSON.stringify({
-        targetElementId: targetElementId ?? null,
-        trackedMediaSrc: lastRightClickedMediaSrc ?? null,
-        storedElement: lastRightClicked
-          ? { tag: lastRightClicked.tagName, connected: lastRightClicked.isConnected }
-          : null,
-        resolved: resolved
-          ? { tag: resolved.tagName, src: (resolved as HTMLImageElement).src || null }
-          : null,
-      }),
-    );
-
     if (!resolved) {
       return new GrabElementResult("no-element");
     }
