@@ -1,0 +1,32 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same ref supersedes the previous run: results of stale
+# commits are noise.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test-build:
+    name: "Lint, test, build"
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # Lints as part of setup; also provides deps, versions (GitVersion), pnpm cache.
+      - uses: ./.github/actions/setup-for-build
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

@@ -1,17 +1,8 @@
 name: Build release
 on:
   push:
-    # `branches` must stay defined: with only `tags`, branch pushes stop triggering.
-    branches:
-      - '**'
     tags:
       - 'v*'
-    # Path filters are not evaluated for tag pushes (GitHub docs), so tags always build.
-    paths:
-      - src/**
-      - extension/**
-      - package.json
-      - pnpm-lock.yaml
   workflow_dispatch:
     inputs:
       publish_amo_listed:
@@ -44,8 +35,6 @@ jobs:
   build_unlisted_firefox:
     name: "Build Unlisted Firefox Extension"
     runs-on: ubuntu-24.04
-    # Doesn't really need the Chrome build, but we can reuse its cache.
-    needs: build_chrome
     # Sign only on release tags: every signature burns the version number on
     # AMO (re-signing the same version returns 409 forever), so master pushes
     # must never sign
@@ -82,8 +71,6 @@ jobs:
   build_amo_firefox:
     name: "Build Firefox Extension for AMO"
     runs-on: ubuntu-24.04
-    # Doesn't really need the Chrome build, but we can reuse its cache.
-    needs: build_chrome
     # Only run when manually dispatching with the publish_amo_listed input.
     if: github.event.inputs.publish_amo_listed == true
     steps:
