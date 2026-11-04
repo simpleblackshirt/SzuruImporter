@@ -17,5 +17,6 @@ extension/.web-extension-id
 node_modules
 src/auto-imports.d.ts
 src/components.d.ts
+web-ext-config.mjs
 *artifacts/
 docs/plan

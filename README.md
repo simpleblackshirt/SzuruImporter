@@ -2,7 +2,7 @@
 
 Chrome/Firefox extension which can import media from various sites into a [szurubooru](https://github.com/rr-/szurubooru) instance.
 
-![Screenshot](./docs/screenshots/Default%20-%20Existing%20post%20found.png)
+[<img src="./docs/screenshots/Default%20-%20Existing%20post%20found.png" width="500" />](./docs/screenshots/Default%20-%20Existing%20post%20found.png)
 
 Fork of [neobooru/SzuruChrome](https://github.com/neobooru/SzuruChrome). Improvements compared to upstream:
 
