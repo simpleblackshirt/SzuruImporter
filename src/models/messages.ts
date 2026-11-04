@@ -37,7 +37,18 @@ export class BrowserCommand<T = any> {
 
 /** Payload of the grab_post_element command (Firefox element resolution). */
 export class GrabPostElementCommandData {
-  constructor(public readonly targetElementId?: number) {}
+  constructor(
+    public readonly targetElementId?: number,
+    /**
+     * Media url of the right-clicked image (menus.OnClickData.srcUrl). Sites
+     * re-render media nodes around their own context menus (x.com swaps the
+     * image node when its media menu opens), which can leave both Firefox's
+     * getTargetElement result and the stored right-click element
+     * disconnected - the content script revives the target from this url
+     * when node identity fails (see resolveGrabTarget).
+     */
+    public readonly srcUrl?: string,
+  ) {}
 }
 
 export type GrabElementStatus = "ok" | "no-container" | "no-element" | "unsupported-site";

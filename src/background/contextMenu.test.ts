@@ -193,6 +193,25 @@ describe("grab dispatch", () => {
     expect(cmd.data).toEqual({ targetElementId: 7 });
   });
 
+  // The media url is the re-render-proof fallback handle: sites like x.com
+  // swap the image node when their own context menu opens, which leaves both
+  // getTargetElement and the stored element disconnected (see resolveGrabTarget).
+  it("passes the clicked media url through as srcUrl", async () => {
+    testCtx.browserStub.tabs.sendMessage.mockResolvedValue(grabbedResponse);
+    const { onClicked } = await initMenu();
+
+    await onClicked(
+      clickInfo({ targetElementId: 7, srcUrl: "https://pbs.twimg.com/media/HU1?format=jpg&name=small" }),
+      tab,
+    );
+
+    const [, cmd] = testCtx.browserStub.tabs.sendMessage.mock.calls[0];
+    expect(cmd.data).toEqual({
+      targetElementId: 7,
+      srcUrl: "https://pbs.twimg.com/media/HU1?format=jpg&name=small",
+    });
+  });
+
   it("stashes a failure record and still opens the popup when no post was found", async () => {
     testCtx.browserStub.tabs.sendMessage.mockResolvedValue({ status: "no-container" });
     const { onClicked } = await initMenu();

@@ -1,5 +1,6 @@
 import { NeoScraper, ScrapeResults } from "neo-scraper";
 import { BrowserCommand, GrabElementResult } from "~/models";
+import { resolveGrabTarget } from "~/contentScripts/grabTarget";
 import { rewriteMediaUrl } from "~/sites/mediaRewrites";
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
@@ -60,7 +61,7 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
     return scraper.scrapeDocument(document, true);
   }
 
-  function grabPostElement(targetElementId?: number): GrabElementResult {
+  function grabPostElement(targetElementId?: number, srcUrl?: string): GrabElementResult {
     if (!scraper.engines.some((engine) => engine.canImport(document.location))) {
       return new GrabElementResult("unsupported-site");
     }
@@ -73,9 +74,15 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
       element = browser.menus.getTargetElement(targetElementId) ?? element;
     }
 
-    if (!element?.isConnected) {
+    // Sites re-render media around their own context menus (x.com swaps the
+    // image node when its media menu opens), which can leave both references
+    // disconnected - revive the target from the menu's media url. Failure
+    // keeps the caller's bail behavior (the rewrite tier / failure banner).
+    const resolved = resolveGrabTarget(element, srcUrl, document);
+    if (!resolved) {
       return new GrabElementResult("no-element");
     }
+    element = resolved;
 
     // Lofter's image viewer (div.photos) renders the enlarged image without
     // any metadata linking back to the post. The left-click that OPENED the
@@ -105,7 +112,7 @@ import { rewriteMediaUrl } from "~/sites/mediaRewrites";
       case "grab_post":
         return grabPost();
       case "grab_post_element":
-        return grabPostElement(cmd.data?.targetElementId);
+        return grabPostElement(cmd.data?.targetElementId, cmd.data?.srcUrl);
     }
   }
 
