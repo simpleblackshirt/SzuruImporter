@@ -32,7 +32,10 @@ runs:
 
     - uses: actions/setup-node@v3
       with:
-        node-version: "20"
+        # undici 8 (jsdom 30 / vitest 5) requires >=22.19 at import time
+        # (node:zlib.createZstdDecompress) - the ubuntu-24.04 image's
+        # preinstalled Node 20 crashes every test worker on startup.
+        node-version: "24"
         cache: "pnpm"
 
     - name: Install dependencies
