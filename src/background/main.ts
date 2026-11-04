@@ -33,34 +33,23 @@ browser.notifications.onClicked.addListener((url) => {
   }
 });
 
-type UpdateTagsState = PostUploadInfo["updateTagsState"];
-
 /**
  * Syncs scraped tag data onto the szuru tags of a post: scraped categories are
  * applied to tags still in the instance's default category, and artist profile
- * urls are merged into the tag descriptions. Returns how many tags were
- * examined and how many actually changed.
+ * urls are merged into the tag descriptions. Returns how many tags actually
+ * changed (tags that already match are not PUT at all).
  */
-async function applyTagFixup(
-  szuru: SzurubooruApi,
-  scrapedTags: ScrapedTagInfo[],
-  postTags: MicroTag[],
-  onProgress?: (state: UpdateTagsState) => void,
-): Promise<{ total: number; changed: number }> {
+async function applyTagFixup(szuru: SzurubooruApi, scrapedTags: ScrapedTagInfo[], postTags: MicroTag[]): Promise<number> {
   const candidateNames = candidateTagNames(scrapedTags, postTags);
   if (candidateNames.length == 0) {
-    return { total: 0, changed: 0 };
+    return 0;
   }
-
-  onProgress?.({ total: candidateNames.length });
 
   const tags = (await szuru.getTags(candidateNames.map(encodeTagName).join())).results;
   const categories = (await szuru.getTagCategories()).results;
   const updates = computeTagUpdates(tags, scrapedTags, categories);
 
-  let current = 0;
   for (const update of updates) {
-    onProgress?.({ total: candidateNames.length, current: ++current });
     await szuru.updateTag(update.name, {
       version: update.version,
       category: update.category,
@@ -68,7 +57,7 @@ async function applyTagFixup(
     });
   }
 
-  return { total: candidateNames.length, changed: updates.length };
+  return updates.length;
 }
 
 async function uploadPost(data: PostUploadCommandData) {
@@ -103,16 +92,10 @@ async function uploadPost(data: PostUploadCommandData) {
     // Sync scraped tag categories and artist profile urls onto the szuru tags.
     // New tags are created by szurubooru in its DEFAULT category (whatever the
     // instance named it), so the categories need fixing afterwards.
-    const fixup = await applyTagFixup(szuru, data.post.tags, createdPost.tags, (state) => {
-      info.updateTagsState = state;
+    const changedTags = await applyTagFixup(szuru, data.post.tags, createdPost.tags);
+    if (changedTags > 0) {
+      info.updateTagsState = { totalChanged: changedTags };
       pushInfo();
-    });
-
-    if (fixup.changed > 0) {
-      info.updateTagsState = { total: fixup.total, totalChanged: fixup.changed };
-      pushInfo();
-    } else {
-      info.updateTagsState = undefined;
     }
 
     // TODO: This code shouldn't all be in the same try catch.
@@ -190,18 +173,9 @@ async function updatePost(data: PostUpdateCommandData) {
     const updatedPost = await szuru.updatePost(data.postId, data.updateRequest);
 
     // The merge may have added tags to the post - sync scraped categories and
-    // profile urls onto them, same as the upload flow does.
-    const fixup = await applyTagFixup(szuru, data.scrapedTags, updatedPost.tags, (state) => {
-      info.updateTagsState = state;
-      pushInfo();
-    });
-
-    if (fixup.changed > 0) {
-      info.updateTagsState = { total: fixup.total, totalChanged: fixup.changed };
-      pushInfo();
-    } else {
-      info.updateTagsState = undefined;
-    }
+    // profile urls onto them, same as the upload flow does. The merge UI has
+    // no per-tag state display, so nothing is reported here.
+    await applyTagFixup(szuru, data.scrapedTags, updatedPost.tags);
 
     info.state = "uploaded";
     pushInfo();

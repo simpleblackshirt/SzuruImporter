@@ -223,28 +223,6 @@ useDark();
 
       <div v-if="instanceSpecificData?.uploadState?.state == 'uploading'"><span>Uploading...</span></div>
 
-      <div
-        v-if="
-          instanceSpecificData?.uploadState?.updateTagsState?.total &&
-          instanceSpecificData.uploadState?.updateTagsState?.current == undefined
-        "
-      >
-        <span>{{ instanceSpecificData.uploadState?.updateTagsState?.total }} tags need an update</span>
-      </div>
-
-      <div
-        v-if="
-          instanceSpecificData?.uploadState?.updateTagsState?.current &&
-          instanceSpecificData?.uploadState?.updateTagsState?.totalChanged == undefined
-        "
-      >
-        <span
-          >Updating tag {{ instanceSpecificData.uploadState?.updateTagsState?.current }}/{{
-            instanceSpecificData.uploadState?.updateTagsState?.total
-          }}</span
-        >
-      </div>
-
       <div v-if="isSearchingForSimilarPosts > 0 && instanceSpecificData?.uploadState == undefined">
         <span>Searching for similar posts...</span>
       </div>

@@ -9,10 +9,9 @@ export class PostUploadInfo {
   state: PostUploadState = "uploading";
   error?: string;
   instancePostId?: number;
+  /** Set only when the tag fixup made at least one real change (applyTagFixup). */
   updateTagsState?: {
-    total: number;
-    current?: number;
-    totalChanged?: number;
+    totalChanged: number;
   };
 }
 
