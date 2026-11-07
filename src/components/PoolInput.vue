@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PropType } from "vue";
 import { PoolDetails } from "~/models";
-import { encodeTagName, getTagClasses } from "~/utils";
+import { encodeTagName, getTagClasses, normalizeName } from "~/utils";
 import SzurubooruApi from "~/api";
 import { CancelToken } from "axios";
 
@@ -17,11 +17,12 @@ function addPool(tag: PoolDetails) {
 }
 
 function addPoolFromCurrentInput(input: string) {
-  addPool(new PoolDetails([input]));
+  addPool(new PoolDetails([normalizeName(input)]));
 }
 
 async function autocompletePopulator(input: string, ct: CancelToken) {
-  const query = decodeURIComponent(`*${encodeTagName(input)}*`);
+  // Normalize so a typed "my pool" finds the stored "my_pool" pool.
+  const query = decodeURIComponent(`*${encodeTagName(normalizeName(input))}*`);
   const res = await props.szuru?.getPools(query, 0, 100, ["id", "names", "category", "description", "postCount"], ct);
 
   if (res) {

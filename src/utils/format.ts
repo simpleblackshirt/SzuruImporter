@@ -67,6 +67,13 @@ export function breakTagName(tagName: string) {
   return tagName.replace(/_/g, "_<wbr>");
 }
 
+// Szurubooru tag/pool names can't contain whitespace, so a typed "long hair"
+// would fail at upload time. Trim the ends and turn internal whitespace runs
+// into a single underscore, which is how those names are spelled in szurubooru.
+export function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, "_");
+}
+
 export function resolutionToString(resolution: [number, number]) {
   if (resolution && resolution.length == 2) {
     return resolution[0] + "x" + resolution[1];

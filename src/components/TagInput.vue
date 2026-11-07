@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PropType } from "vue";
 import { TagDetails } from "~/models";
-import { encodeTagName, getTagClasses } from "~/utils";
+import { encodeTagName, getTagClasses, normalizeName } from "~/utils";
 import SzurubooruApi from "~/api";
 import { CancelToken } from "axios";
 
@@ -17,11 +17,12 @@ function addTag(tag: TagDetails) {
 }
 
 function addTagFromCurrentInput(input: string) {
-  addTag(new TagDetails([input]));
+  addTag(new TagDetails([normalizeName(input)]));
 }
 
 async function autocompletePopulator(input: string, ct: CancelToken) {
-  const query = decodeURIComponent(`*${encodeTagName(input)}* sort:usages`);
+  // Normalize so a typed "long hair" finds the stored "long_hair" tag.
+  const query = decodeURIComponent(`*${encodeTagName(normalizeName(input))}* sort:usages`);
   const res = await props.szuru?.getTags(query, 0, 100, ["names", "category", "usages", "implications"], ct);
 
   if (res) {
