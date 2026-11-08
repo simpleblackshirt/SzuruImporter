@@ -113,6 +113,30 @@ function resetTagIgnores() {
   cfg.value.tagIgnores.splice(0);
 }
 
+// Deduplicated names from the tag categories table above; the deprioritized
+// checkbox list follows it exactly. The watcher below keeps the stored list
+// in sync when rows are removed or renamed.
+const deprioritizedCategoryNames = computed(() => [
+  ...new Set(cfg.value.tagCategories.map((x) => x.name)),
+]);
+
+// When a category is removed (or renamed) in the table above, drop its entry
+// from the deprioritized list too instead of leaving a stale entry that keeps
+// deprioritizing tags invisibly. Stale entries from before this behavior
+// existed are pruned once by the config migration in the store (case 1); no
+// `immediate` here on purpose — at setup time storage hasn't loaded yet and
+// the defaults' empty table would wrongly wipe the default list.
+watch(
+  () => cfg.value.tagCategories.map((x) => x.name),
+  (names) => {
+    const known = new Set(names);
+    const filtered = cfg.value.deprioritizedTagCategories.filter((x) => known.has(x));
+    if (filtered.length !== cfg.value.deprioritizedTagCategories.length) {
+      cfg.value.deprioritizedTagCategories = filtered;
+    }
+  },
+);
+
 // For debugging
 const wnd = window as any;
 wnd.szc_get_config = () => JSON.parse(JSON.stringify(cfg.value));
@@ -337,6 +361,27 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
             </div>
 
             <!-- TODO: Tag category colors -->
+
+            <div class="grid">
+              <div class="col-12">
+                <label>Deprioritize categories in the tag autocomplete</label>
+
+                <div class="flex flex-wrap gap-3 mt-3 mb-3">
+                  <label class="tag-checkbox" v-for="name in deprioritizedCategoryNames" :key="name">
+                    <input type="checkbox" :value="name" v-model="cfg.deprioritizedTagCategories" />
+                    {{ name }}
+                  </label>
+                </div>
+
+                <p class="hint">
+                  Tags in these categories are sorted to the bottom of the tag autocomplete dropdown, so other
+                  matches show up first.
+                </p>
+                <p class="hint">
+                  The list is built from the tag categories above.
+                </p>
+              </div>
+            </div>
 
             <div class="grid">
               <DataTable :value="cfg.tagIgnores" table-class="col-12" style="width: 100%">

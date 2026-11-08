@@ -2,8 +2,9 @@
 import { PropType } from "vue";
 import axios, { CancelToken } from "axios";
 import { TagDetails } from "~/models";
-import { buildNamePattern, encodeTagName, getTagClasses, normalizeName } from "~/utils";
+import { buildNamePattern, deprioritizeTags, encodeTagName, getTagClasses, normalizeName } from "~/utils";
 import SzurubooruApi from "~/api";
+import { cfg } from "~/stores";
 
 const autocompleteItems = ref<TagDetails[]>([]);
 
@@ -33,7 +34,10 @@ async function autocompletePopulator(input: string, ct: CancelToken) {
     const res = await props.szuru?.getTags(query, 0, 100, ["names", "category", "usages", "implications"], ct);
     if (res) {
       // TODO: Maybe search on hamming distance or something?
-      autocompleteItems.value = res.results.map((x) => TagDetails.fromTag(x));
+      autocompleteItems.value = deprioritizeTags(
+        res.results.map((x) => TagDetails.fromTag(x)),
+        cfg.value.deprioritizedTagCategories,
+      );
     } else {
       autocompleteItems.value = [];
     }

@@ -74,6 +74,23 @@ export function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, "_");
 }
 
+// Pushes tags whose category is in `deprioritized` to the end of the list,
+// preserving the existing (usages-based) order within each group. Tags with
+// no category always stay up front. Used for tag autocomplete so e.g. artist
+// tags don't drown out everything else.
+export function deprioritizeTags<T extends { category?: string }>(
+  items: T[],
+  deprioritized: string[],
+): T[] {
+  const set = new Set(deprioritized);
+  const rest: T[] = [];
+  const late: T[] = [];
+  for (const item of items) {
+    (item.category !== undefined && set.has(item.category) ? late : rest).push(item);
+  }
+  return [...rest, ...late];
+}
+
 // Builds the search pattern for tag/pool autocomplete. Substring patterns
 // ("*abc*", with a leading wildcard) are the expensive kind: the backend
 // can't use an index for them and, with a usages sort, has to compute a

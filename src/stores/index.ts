@@ -44,6 +44,7 @@ export const cfg = useStorageLocal(
     },
     tagCategories: [] as Array<TagCategoryColor>,
     tagIgnores: [] as Array<TagDetails>,
+    deprioritizedTagCategories: ["artist"] as string[],
   },
   {
     mergeDefaults(storageValue, defaults) {
@@ -61,6 +62,17 @@ export const cfg = useStorageLocal(
               cfg.tagCategories.push(cat);
             }
           }
+
+        // Fall through: the version 1 migration also applies to configs
+        // coming straight from version 0.
+        case 1:
+          cfg.version++;
+
+          // Drop deprioritized categories that no longer exist in
+          // tagCategories, so they can't keep deprioritizing tags invisibly.
+          cfg.deprioritizedTagCategories = cfg.deprioritizedTagCategories.filter((x) =>
+            cfg.tagCategories.some((cat) => cat.name === x),
+          );
       }
 
       if (oldVersion != cfg.version) {
