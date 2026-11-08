@@ -40,6 +40,7 @@ export const cfg = useStorageLocal(
       showSource: true,
       showPools: true,
       showInstancePicker: true,
+      keepTagsBetweenPosts: false,
     },
     tagCategories: [] as Array<TagCategoryColor>,
     tagIgnores: [] as Array<TagDetails>,

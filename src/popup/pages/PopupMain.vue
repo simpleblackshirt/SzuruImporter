@@ -49,7 +49,22 @@ const instanceSpecificData = readonly(
 
 watch(
   () => pop.selectedPostId,
-  (value) => {
+  (value, oldValue) => {
+    // Carry the previous post's tags over to the newly selected post when wanted.
+    // The previous post lookup naturally fails during grabs (posts are replaced
+    // before selectedPostId is set), so fresh grabs are never polluted.
+    if (cfg.value.popup.keepTagsBetweenPosts) {
+      const previousPost = pop.posts.find((x) => x.id == oldValue);
+      const selectedPost = pop.posts.find((x) => x.id == value);
+      if (previousPost && selectedPost) {
+        for (const tag of previousPost.tags) {
+          // No implication expansion: implications were already expanded when
+          // the tag was added, the carried set mirrors the previous post.
+          pushTagWithImplications(selectedPost.tags, tag, false);
+        }
+      }
+    }
+
     // Call findSimilar if wanted.
     if (cfg.value.autoSearchSimilar && enableAutoSearch.value) {
       let selectedPost = pop.posts.find((x) => x.id == value);
@@ -78,7 +93,16 @@ function openOptionsPage() {
 }
 
 function removeTag(tag: TagDetails) {
-  if (pop.selectedPost) {
+  if (cfg.value.popup.keepTagsBetweenPosts) {
+    // Remove the tag from every post by name. Carried tags would otherwise
+    // resurrect on the next switch via a post that still had the tag.
+    for (const post of pop.posts) {
+      const idx = post.tags.findIndex((x) => x.name == tag.name);
+      if (idx != -1) {
+        post.tags.splice(idx, 1);
+      }
+    }
+  } else if (pop.selectedPost) {
     const idx = pop.selectedPost.tags.indexOf(tag);
     if (idx != -1) {
       pop.selectedPost.tags.splice(idx, 1);
@@ -306,6 +330,13 @@ useDark();
       <PopupSection header="Tags" toggleable v-model="cfg.popup.expandTags">
         <div class="section-row">
           <TagInput :szuru="szuru" @add-tag="addTag" />
+        </div>
+
+        <div class="section-row" v-if="pop.posts.length > 1">
+          <label>
+            <input type="checkbox" v-model="cfg.popup.keepTagsBetweenPosts" />
+            Keep tags between posts
+          </label>
         </div>
 
         <div class="section-row">
