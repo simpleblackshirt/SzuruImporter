@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { PropType } from "vue";
+import axios, { CancelToken } from "axios";
 import { TagDetails } from "~/models";
-import { encodeTagName, getTagClasses, normalizeName } from "~/utils";
+import { buildNamePattern, encodeTagName, getTagClasses, normalizeName } from "~/utils";
 import SzurubooruApi from "~/api";
-import { CancelToken } from "axios";
 
 const autocompleteItems = ref<TagDetails[]>([]);
 
@@ -21,16 +21,27 @@ function addTagFromCurrentInput(input: string) {
 }
 
 async function autocompletePopulator(input: string, ct: CancelToken) {
-  // Normalize so a typed "long hair" finds the stored "long_hair" tag.
-  const query = decodeURIComponent(`*${encodeTagName(normalizeName(input))}* sort:usages`);
-  const res = await props.szuru?.getTags(query, 0, 100, ["names", "category", "usages", "implications"], ct);
-
-  if (res) {
-    // TODO: Maybe search on hamming distance or something?
-    autocompleteItems.value = res.results.map((x) => TagDetails.fromTag(x));
-    console.dir(autocompleteItems.value);
-  } else {
+  const pattern = buildNamePattern(input);
+  if (pattern === null) {
     autocompleteItems.value = [];
+    return;
+  }
+
+  const query = `${encodeTagName(pattern)} sort:usages`;
+
+  try {
+    const res = await props.szuru?.getTags(query, 0, 100, ["names", "category", "usages", "implications"], ct);
+    if (res) {
+      // TODO: Maybe search on hamming distance or something?
+      autocompleteItems.value = res.results.map((x) => TagDetails.fromTag(x));
+    } else {
+      autocompleteItems.value = [];
+    }
+  } catch (ex) {
+    // Swallow cancelled requests; on real errors keep whatever is currently
+    // displayed so a single failed query doesn't wipe the dropdown.
+    if (axios.isCancel(ex)) return;
+    console.warn("Tag autocomplete failed:", ex);
   }
 }
 </script>

@@ -11,6 +11,7 @@ Fork of [neobooru/SzuruChrome](https://github.com/neobooru/SzuruChrome). Improve
 - **Site adapter registry** covering all 22 [neo-scraper](https://github.com/simpleblackshirt/neo-scraper) engines, with source dedup across host-site families (e.g. weibo/sinaimg)
 - **New engines via the neo-scraper fork**: Lofter, Weibo, Xiaohongshu, plus Bluesky tags — and engine accuracy fixes across Twitter, Pixiv, Weibo, Xiaohongshu, Lofter, and Bluesky
 - **Tag handling**: tag categories filled from the backend so known tags show colored, plus an optional setting to replace existing aliases with primary tag names
+- **Faster tag/pool autocomplete**: queries are debounced (250 ms) and in-flight requests cancelled, inputs up to 2 characters search as a prefix (`ha*`) while longer ones search as a substring (`*hair*` — the expensive shape for the backend), and a typed `*` is always passed through verbatim so `*hair*` / `lo*hair` do explicit wildcard searches. Also fixes a crash when typing a stray `%`
 - **Refactoring and package updates**: composables extracted from the popup (grab/upload/tag counts/similar search/content info/merge changeset), ESLint 10 flat config, PrimeVue 5, Pinia 4, Vitest 5, and dependency majors across the board
 
 The functionality of most of the supported websites not mentioned above has not been checked so there might be things in need of fixing that aren't fixed yet.

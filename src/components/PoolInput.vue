@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { PropType } from "vue";
+import axios, { CancelToken } from "axios";
 import { PoolDetails } from "~/models";
-import { encodeTagName, getTagClasses, normalizeName } from "~/utils";
+import { buildNamePattern, encodeTagName, getTagClasses, normalizeName } from "~/utils";
 import SzurubooruApi from "~/api";
-import { CancelToken } from "axios";
 
 const autocompleteItems = ref<PoolDetails[]>([]);
 
@@ -21,15 +21,27 @@ function addPoolFromCurrentInput(input: string) {
 }
 
 async function autocompletePopulator(input: string, ct: CancelToken) {
-  // Normalize so a typed "my pool" finds the stored "my_pool" pool.
-  const query = decodeURIComponent(`*${encodeTagName(normalizeName(input))}*`);
-  const res = await props.szuru?.getPools(query, 0, 100, ["id", "names", "category", "description", "postCount"], ct);
-
-  if (res) {
-    // TODO: Maybe search on hamming distance or something?
-    autocompleteItems.value = res.results.map((x) => PoolDetails.fromPool(x));
-  } else {
+  const pattern = buildNamePattern(input);
+  if (pattern === null) {
     autocompleteItems.value = [];
+    return;
+  }
+
+  const query = encodeTagName(pattern);
+
+  try {
+    const res = await props.szuru?.getPools(query, 0, 100, ["id", "names", "category", "description", "postCount"], ct);
+    if (res) {
+      // TODO: Maybe search on hamming distance or something?
+      autocompleteItems.value = res.results.map((x) => PoolDetails.fromPool(x));
+    } else {
+      autocompleteItems.value = [];
+    }
+  } catch (ex) {
+    // Swallow cancelled requests; on real errors keep whatever is currently
+    // displayed so a single failed query doesn't wipe the dropdown.
+    if (axios.isCancel(ex)) return;
+    console.warn("Pool autocomplete failed:", ex);
   }
 }
 </script>

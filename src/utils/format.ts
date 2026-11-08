@@ -74,6 +74,25 @@ export function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, "_");
 }
 
+// Builds the search pattern for tag/pool autocomplete. Substring patterns
+// ("*abc*", with a leading wildcard) are the expensive kind: the backend
+// can't use an index for them and, with a usages sort, has to compute a
+// usage count for every tag that matches. So short inputs search as a
+// prefix ("ab*") instead, matching what the szurubooru client does.
+// A user-typed "*" is always passed through verbatim, so "*hair*" still
+// performs an explicit substring search. Returns null when the input
+// contains nothing but wildcards, which would match every tag.
+export function buildNamePattern(input: string) {
+  const name = normalizeName(input);
+  if (name.replace(/\*/g, "").length == 0) {
+    return null;
+  }
+  if (name.includes("*")) {
+    return name;
+  }
+  return name.length >= 3 ? `*${name}*` : `${name}*`;
+}
+
 export function resolutionToString(resolution: [number, number]) {
   if (resolution && resolution.length == 2) {
     return resolution[0] + "x" + resolution[1];
