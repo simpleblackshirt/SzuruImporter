@@ -25,13 +25,21 @@ if (__DEV__) {
   import("./contentScriptHMR");
 }
 
-browser.notifications.onClicked.addListener((url) => {
-  // Only upload-result notifications carry http(s) url ids; anything else is ignored.
-  if (url && /^https?:\/\//.test(url)) {
-    browser.tabs.create({ url });
-    browser.notifications.clear(url);
-  }
-});
+// Android has no notifications API - the namespace itself is absent there,
+// while the permission guarantees it on desktop. The guard is load-bearing:
+// a throw here would abort the background page before the runtime.onMessage
+// listener below is ever registered, and every popup command (uploads
+// included) would fail with "Could not establish connection. Receiving end
+// does not exist." (see contextMenusSupported in ./contextMenu).
+if (typeof browser.notifications !== "undefined") {
+  browser.notifications.onClicked.addListener((url) => {
+    // Only upload-result notifications carry http(s) url ids; anything else is ignored.
+    if (url && /^https?:\/\//.test(url)) {
+      browser.tabs.create({ url });
+      browser.notifications.clear(url);
+    }
+  });
+}
 
 /**
  * Syncs scraped tag data onto the szuru tags of a post: scraped categories are
@@ -39,7 +47,11 @@ browser.notifications.onClicked.addListener((url) => {
  * urls are merged into the tag descriptions. Returns how many tags actually
  * changed (tags that already match are not PUT at all).
  */
-async function applyTagFixup(szuru: SzurubooruApi, scrapedTags: ScrapedTagInfo[], postTags: MicroTag[]): Promise<number> {
+async function applyTagFixup(
+  szuru: SzurubooruApi,
+  scrapedTags: ScrapedTagInfo[],
+  postTags: MicroTag[],
+): Promise<number> {
   const candidateNames = candidateTagNames(scrapedTags, postTags);
   if (candidateNames.length == 0) {
     return 0;
@@ -60,13 +72,24 @@ async function applyTagFixup(szuru: SzurubooruApi, scrapedTags: ScrapedTagInfo[]
   return updates.length;
 }
 
+/**
+ * Fire-and-forget message into the popup. The receiving end can be gone mid
+ * upload (the popup closed - easy on mobile, e.g. rotation or switching apps),
+ * which rejects with "Could not establish connection. Receiving end does not
+ * exist." Swallow that instead of piling up unhandled rejections in the
+ * background console; the info object stays authoritative for the final state.
+ */
+function sendToPopup(cmd: BrowserCommand) {
+  return browser.runtime.sendMessage(cmd).catch(() => undefined);
+}
+
 async function uploadPost(data: PostUploadCommandData) {
   const info: PostUploadInfo = {
     state: "uploading",
   };
 
   const pushInfo = () =>
-    browser.runtime.sendMessage(
+    sendToPopup(
       new BrowserCommand("set_post_upload_info", new SetPostUploadInfoData(data.selectedSite.id, data.post.id, info)),
     );
 
@@ -138,7 +161,7 @@ async function uploadPost(data: PostUploadCommandData) {
     console.error(ex);
     if (ex.name && ex.name == "PostAlreadyUploadedError") {
       const otherPostId = (ex as PostAlreadyUploadedError).otherPostId;
-      browser.runtime.sendMessage(
+      sendToPopup(
         new BrowserCommand("set_exact_post_id", new SetExactPostId(data.selectedSite.id, data.post.id, otherPostId)),
       );
       // We don't set an error message, because we have a different message for posts that are already uploaded.
@@ -158,7 +181,7 @@ async function updatePost(data: PostUpdateCommandData) {
   };
 
   const pushInfo = () =>
-    browser.runtime.sendMessage(
+    sendToPopup(
       new BrowserCommand(
         "set_post_update_info",
         new SetPostUploadInfoData(data.selectedSite.id, `merge-${data.postId}`, info),
@@ -218,27 +241,35 @@ browser.runtime.onMessage.addListener(messageHandler);
 // variant ships webRequestBlocking and this runtime gate auto-revives the
 // listener there. Chromium (permission pruned) uses DNR session rules instead.
 if (hasWebRequestBlocking()) {
-  browser.webRequest.onBeforeSendHeaders.addListener(
-    (details) => {
-      const rule = refererRules.find(
-        (x) => (!x.extensionInitiatedOnly || isExtensionInitiated(details)) && x.urlPattern.test(details.url),
-      );
+  // Capability check on top of the manifest gate: the namespace itself can be
+  // absent where the platform drops the API (same trap as
+  // notifications/contextMenus above), and losing the referer rewrite must
+  // never abort the remaining background startup.
+  if (typeof browser.webRequest !== "undefined") {
+    browser.webRequest.onBeforeSendHeaders.addListener(
+      (details) => {
+        const rule = refererRules.find(
+          (x) => (!x.extensionInitiatedOnly || isExtensionInitiated(details)) && x.urlPattern.test(details.url),
+        );
 
-      if (!rule) {
-        return {};
-      }
+        if (!rule) {
+          return {};
+        }
 
-      // Replace any existing Referer to make the outgoing header deterministic.
-      const requestHeaders = (details.requestHeaders ?? []).filter(
-        (header) => header.name.toLowerCase() != "referer",
-      );
-      requestHeaders.push({ name: "Referer", value: rule.referer });
+        // Replace any existing Referer to make the outgoing header deterministic.
+        const requestHeaders = (details.requestHeaders ?? []).filter(
+          (header) => header.name.toLowerCase() != "referer",
+        );
+        requestHeaders.push({ name: "Referer", value: rule.referer });
 
-      return { requestHeaders };
-    },
-    { urls: refererRules.flatMap((x) => x.urlFilter) },
-    refererExtraInfoSpec(["blocking", "requestHeaders"]),
-  );
+        return { requestHeaders };
+      },
+      { urls: refererRules.flatMap((x) => x.urlFilter) },
+      refererExtraInfoSpec(["blocking", "requestHeaders"]),
+    );
+  } else {
+    console.error("Manifest ships webRequestBlocking but browser.webRequest is unavailable.");
+  }
 } else {
   // Session rules survive SW restarts but are cleared at browser shutdown and
   // extension update (mv3-facts W1) - re-register idempotently on every wake.

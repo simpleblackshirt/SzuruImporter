@@ -22,7 +22,10 @@ export function registerPopupReferrerListener(
 ): void {
   // Chromium manifest variant: the permission is pruned, registering a
   // "blocking" listener would throw in the popup page. DNR covers this path.
-  if (!hasWebRequestBlocking()) {
+  // Also gate the namespace itself: it can be absent where the platform drops
+  // the API entirely (the same startup-crash trap as the background page),
+  // and a throw here must not take the popup down.
+  if (!hasWebRequestBlocking() || typeof browser.webRequest === "undefined") {
     return;
   }
 

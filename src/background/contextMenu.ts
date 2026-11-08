@@ -11,6 +11,16 @@ const MENU_IDS: ReadonlySet<string> = new Set([MEDIA_MENU_ID, PAGE_MENU_ID]);
 const STASH_KEY = "contextGrabStash";
 
 /**
+ * Android has no context menus - the API namespace itself is absent there,
+ * while the permission guarantees it on desktop. Every touch must be gated on
+ * this: a top-level throw would abort the whole background page before the
+ * runtime.onMessage listener in main.ts is ever registered, which surfaces to
+ * users as "Could not establish connection. Receiving end does not exist."
+ * for every popup command (uploads included).
+ */
+const contextMenusSupported = typeof browser.contextMenus !== "undefined";
+
+/**
  * Two items whose visibility is provably disjoint, so exactly one row can
  * ever show per click - checked against both engines' matchers (Chromium's
  * ExtensionContextAndPatternMatch, Firefox's menus enabledForContext +
@@ -75,6 +85,9 @@ function documentUrlPatterns(): string[] {
 
 /** (Re)creates the menu items; idempotent across reloads and SW wakes. */
 async function registerContextMenu() {
+  if (!contextMenusSupported) {
+    return;
+  }
   await browser.contextMenus.removeAll();
   if (!(await openPopupSupported())) {
     return;
@@ -172,6 +185,8 @@ function onInstalledOrStartup() {
 
 browser.runtime.onInstalled.addListener(onInstalledOrStartup);
 browser.runtime.onStartup.addListener(onInstalledOrStartup);
-browser.contextMenus.onClicked.addListener((info, tab) =>
-  dispatchGrab(info, tab).catch((ex) => console.error("context menu grab failed:", ex)),
-);
+if (contextMenusSupported) {
+  browser.contextMenus.onClicked.addListener((info, tab) =>
+    dispatchGrab(info, tab).catch((ex) => console.error("context menu grab failed:", ex)),
+  );
+}
