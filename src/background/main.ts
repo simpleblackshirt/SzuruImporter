@@ -83,6 +83,34 @@ function sendToPopup(cmd: BrowserCommand) {
   return browser.runtime.sendMessage(cmd).catch(() => undefined);
 }
 
+/**
+ * Creates the post with a content token when one exists, or by handing the
+ * url to the szurubooru server otherwise (url-mode). When the SERVER-side
+ * download of a url-mode post is rejected by the source (szurubooru
+ * DownloadError - hotlink protection, bot filtering), it is retried ONCE
+ * from this side: the media is fetched here - where the site's Referer is
+ * attached by the webRequest/DNR rules - and uploaded as a temp file.
+ * Runs in the background, so the retry also survives a closed popup.
+ */
+async function createPostWithFallback(szuru: SzurubooruApi, data: PostUploadCommandData, contentToken?: string) {
+  try {
+    return await szuru.createPost(data.post, contentToken);
+  } catch (ex: any) {
+    if (contentToken || ex?.name != "DownloadError") {
+      throw ex;
+    }
+
+    console.log(
+      `Server could not download '${data.post.contentUrl}' (${getErrorMessage(ex)}). Retrying with a client-side download.`,
+    );
+
+    // Deliberately not wrapped: a PostAlreadyUploadedError from the retry
+    // must keep its identity for the exact-post-id handling below.
+    const retryToken = await szuru.uploadTempFileFromContent(data.post.contentUrl);
+    return szuru.createPost(data.post, retryToken.token);
+  }
+}
+
 async function uploadPost(data: PostUploadCommandData) {
   const info: PostUploadInfo = {
     state: "uploading",
@@ -106,7 +134,7 @@ async function uploadPost(data: PostUploadCommandData) {
       console.log("contentToken is undefined. This could be a problem for some sources!");
     }
 
-    const createdPost = await szuru.createPost(data.post, contentToken);
+    const createdPost = await createPostWithFallback(szuru, data, contentToken);
 
     info.state = "uploaded";
     info.instancePostId = createdPost.id;
