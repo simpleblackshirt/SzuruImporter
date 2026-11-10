@@ -1,9 +1,7 @@
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
-  neo-scraper: true
-  neo-scraper@git+https://github.com/simpleblackshirt/neo-scraper.git#c93f191d5766abf46c7687ff6f2c90b5ad51db6a: true
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/c93f191d5766abf46c7687ff6f2c90b5ad51db6a: true
+  neo-scraper@git+https://github.com/simpleblackshirt/neo-scraper.git: true
   spawn-sync: true
   vue-demi: true
 blockExoticSubdeps: true

@@ -24,8 +24,8 @@ importers:
         specifier: ^15.0.2
         version: 15.0.2
       neo-scraper:
-        specifier: github:simpleblackshirt/neo-scraper#master
-        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/c93f191d5766abf46c7687ff6f2c90b5ad51db6a
+        specifier: git+https://github.com/simpleblackshirt/neo-scraper.git
+        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/4f87ce9476fade5548a5c76dd5ab2965ab382f33
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3))
@@ -2510,9 +2510,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/c93f191d5766abf46c7687ff6f2c90b5ad51db6a:
-    resolution: {gitHosted: true, integrity: sha512-DQ0jUh/OAzjbddJ3KNFT54CBmTWj4h5/xqOj4Y2llwz/d+keM3ETaypXrx3s6bPWQ9LmOHsJRjQWSk2en9QYOw==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/c93f191d5766abf46c7687ff6f2c90b5ad51db6a}
-    version: 0.14.2
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/4f87ce9476fade5548a5c76dd5ab2965ab382f33:
+    resolution: {gitHosted: true, integrity: sha512-CASbe8cKNmVlh3TB0/m79b5IVMJqZZ/vtcIPbTTgQlTQNR6+McLHdWtOdbSqC7b81RyFRr+FHTu7nrj62vX6ag==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/4f87ce9476fade5548a5c76dd5ab2965ab382f33}
+    version: 0.14.3
 
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
@@ -5881,7 +5881,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/c93f191d5766abf46c7687ff6f2c90b5ad51db6a:
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/4f87ce9476fade5548a5c76dd5ab2965ab382f33:
     dependencies:
       js-cookie: 3.0.8
       turndown: 7.2.4
