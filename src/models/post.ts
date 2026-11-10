@@ -5,6 +5,15 @@ import type { PostUploadInfo } from "./messages";
 export class TagDetails {
   public implications: TagDetails[] = [];
 
+  /**
+   * Set while the tag is staged for creation (not yet on the instance): the
+   * staged implication names it should be created with. The staged category
+   * reuses the plain `category` field, which is what colors the chip in the
+   * UI. Plain serializable fields only - this rides cloneDeep + runtime
+   * messaging to the background, where creation happens at save time.
+   */
+  public staged?: { implications: string[] };
+
   constructor(
     public names: string[],
     public category?: string,

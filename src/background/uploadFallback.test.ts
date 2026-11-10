@@ -11,6 +11,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const testCtx = vi.hoisted(() => {
   const createPost = vi.fn();
   const uploadTempFileFromContent = vi.fn();
+  // The upload flow's tag-existence pre-check (created-tags counting); an
+  // empty result = no tag on the instance = all post tags count as new.
+  const getTags = vi.fn().mockResolvedValue({ results: [] });
 
   const browserStub = {
     runtime: {
@@ -36,7 +39,7 @@ const testCtx = vi.hoisted(() => {
     storage: { session: { get: vi.fn().mockResolvedValue({}), set: vi.fn().mockResolvedValue(undefined) } },
   };
 
-  return { createPost, uploadTempFileFromContent, browserStub };
+  return { createPost, uploadTempFileFromContent, getTags, browserStub };
 });
 
 vi.mock("~/api", () => ({
@@ -44,6 +47,7 @@ vi.mock("~/api", () => ({
     createFromConfig: () => ({
       createPost: testCtx.createPost,
       uploadTempFileFromContent: testCtx.uploadTempFileFromContent,
+      getTags: testCtx.getTags,
     }),
   },
 }));

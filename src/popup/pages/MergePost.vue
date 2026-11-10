@@ -6,7 +6,9 @@ import { isMobile } from "~/env";
 import { useRouter } from "vue-router";
 import { BrowserCommand, PostUpdateCommandData, TagDetails } from "~/models";
 import { cfg, useMergeStore, usePopupStore } from "~/stores";
-import { emptyPost, ensurePostHasContentToken, getUrl } from "~/utils";
+import { emptyPost, ensurePostHasContentToken, getCreatedTagsText, getUrl } from "~/utils";
+import { dedupeStaged, stripStagedImplications, toStagedInfos, type StagedTagInfo } from "~/utils/staged-tags";
+import { encodeTagName } from "~/utils";
 import { appendScrapedSource, mergeChangeset, scrapedMissingTags } from "../composables/mergeChangeset";
 import { pushTagWithImplications } from "../composables/tagImplications";
 
@@ -32,6 +34,13 @@ const scrapedPost = pop.selectedPost;
 // Stuff which the user can change.
 const imageToKeep = ref<"current" | "new">("new");
 const tagsToAdd = reactive([] as TagDetails[]);
+
+// Staged (creation-card) entries currently queued in tagsToAdd. Drives the
+// autocomplete merge and the staging validation.
+const stagedTagInfos = computed<StagedTagInfo[]>(() => dedupeStaged(toStagedInfos(tagsToAdd)));
+
+// Tags currently awaiting a creation-card decision.
+const pendingTags = ref<TagDetails[]>([]);
 
 // Computed stuff.
 const sourcesAdded = ref(0);
@@ -65,10 +74,78 @@ function addTag(tag: TagDetails) {
   }
 }
 
+/**
+ * Same staging flow as PopupMain: a manually typed tag without instance data
+ * gets an existence check - found, enrich and queue normally; not found,
+ * open the creation card.
+ */
+async function addTagWithStaging(tag: TagDetails) {
+  if (tag.name.length == 0) return;
+
+  if (!cfg.value.stagedTagCreation || tag.staged || tag.category !== undefined || tag.usages !== undefined) {
+    addTag(tag);
+    return;
+  }
+
+  try {
+    const res = await szuru?.getTags(encodeTagName(tag.name), 0, 1, ["names", "category", "usages", "implications"]);
+    if (res && res.results.length > 0) {
+      const instanceTag = res.results.find((x) => x.names.includes(tag.name));
+      if (instanceTag) {
+        addTag(TagDetails.fromTag(instanceTag));
+      } else {
+        addTag(tag);
+      }
+      return;
+    }
+  } catch (ex) {
+    console.warn("Tag existence check failed:", ex);
+  }
+
+  if (!pendingTags.value.some((x) => x.name == tag.name)) {
+    pendingTags.value.push(tag);
+  }
+}
+
+function dismissPendingTag(tag: TagDetails) {
+  const idx = pendingTags.value.indexOf(tag);
+  if (idx != -1) {
+    pendingTags.value.splice(idx, 1);
+  }
+}
+
+function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: string[] }) {
+  dismissPendingTag(tag);
+
+  // Staging only: created through the API when the merge is saved.
+  tag.category = choice.category;
+  tag.staged = { implications: choice.implications };
+  pushTagWithImplications(
+    tagsToAdd,
+    tag,
+    false,
+    (candidate) =>
+      tagsToAdd.some((x) => x.name == candidate.name) ||
+      post.value.tags.some((x) => x.names.indexOf(candidate.name) != -1),
+  );
+}
+
+function skipStagedTag(tag: TagDetails) {
+  dismissPendingTag(tag);
+  addTag(tag);
+}
+
 function removeTagToAdd(tag: TagDetails) {
   const idx = tagsToAdd.indexOf(tag);
   if (idx != -1) {
     tagsToAdd.splice(idx, 1);
+  }
+
+  if (tag.staged) {
+    // Removal propagates: the tag itself already left tagsToAdd above, so
+    // stripping its name from the remaining staged entries' implication
+    // lists means a save can't resurrect it via the backend's auto-create.
+    stripStagedImplications(tagsToAdd, tag.name);
   }
 }
 
@@ -214,11 +291,19 @@ onMounted(async () => {
           <a :href="getPostUrl(data.info.instancePostId)">Merged into post {{ data.info.instancePostId }}</a>
         </div>
 
+        <div :key="data.postId + '-created'" v-if="data.info.createdTagsState?.totalCreated" class="bg-success">
+          <span>{{ getCreatedTagsText(data.info.createdTagsState?.totalCreated) }}</span>
+        </div>
+
         <div :key="data.postId" v-if="data.info.state == 'uploading'"><span>Merging...</span></div>
 
         <!-- Only show error when it's not undefined and not empty. -->
         <div :key="data.postId" v-if="data.info.error?.length" class="bg-danger">
           <span>Couldn't merge into post. {{ data.info.error }}</span>
+        </div>
+
+        <div :key="data.postId + '-warning'" v-if="data.info.tagCreationWarning?.length" class="bg-warning">
+          <span>{{ data.info.tagCreationWarning }}</span>
         </div>
       </template>
     </div>
@@ -307,7 +392,17 @@ onMounted(async () => {
 
       <PopupSection header="Tags to add" toggleable v-model="cfg.merge.expandAddTags">
         <div class="section-row">
-          <TagInput :szuru="szuru" @add-tag="addTag" />
+          <TagInput :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
+        </div>
+
+        <div class="section-row" v-for="tag in pendingTags" :key="tag.name">
+          <TagCreationCard
+            :szuru="szuru"
+            :tag-name="tag.name"
+            :staged-tags="stagedTagInfos"
+            @confirm="(choice) => confirmStagedTag(tag, choice)"
+            @skip="skipStagedTag(tag)"
+          />
         </div>
 
         <div class="section-row">

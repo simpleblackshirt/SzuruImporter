@@ -252,6 +252,18 @@ wnd.szc_set_config_version = (v = 0) => (cfg.value.version = v);
 
             <div class="col-12 md:col-6">
               <label>
+                <input type="checkbox" v-model="cfg.stagedTagCreation" />
+                Stage new tags with category and implications
+              </label>
+              <p class="hint">
+                When adding a tag that does not exist on the instance yet, offer a small creation card to pick its
+                category and implications. The tag is only created when the post is actually saved - removed or
+                abandoned tags are never created. Without this, new tags land in the instance's default category.
+              </p>
+            </div>
+
+            <div class="col-12 md:col-6">
+              <label>
                 <input type="checkbox" v-model="cfg.popup.showSource" />
                 Show source textbox in popup
               </label>

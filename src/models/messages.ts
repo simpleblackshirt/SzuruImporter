@@ -13,6 +13,21 @@ export class PostUploadInfo {
   updateTagsState?: {
     totalChanged: number;
   };
+  /**
+   * Set when at least one tag on the saved post is new to the instance.
+   * Counted via the pre-save existence check over ALL post tags - includes
+   * backend-auto-created scraped tags, not just staged ones. Suppressed when
+   * the existence check fails (success-only reporting, no guessed numbers).
+   */
+  createdTagsState?: {
+    totalCreated: number;
+  };
+  /**
+   * Non-fatal staged-tag warning (e.g. missing tag-creation permission made a
+   * staged tag degrade to the stock default-category behavior). Shown as an
+   * info banner; the upload itself continues.
+   */
+  tagCreationWarning?: string;
 }
 
 export type BrowserCommandName =

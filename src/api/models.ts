@@ -155,6 +155,20 @@ export interface UpdateTagRequest {
   description?: string;
 }
 
+/**
+ * Payload of POST /tags (tag creation). Implication targets must exist by the
+ * time the request lands - the caller is responsible for creating them in
+ * topological order first. Unknown implication names are silently dropped by
+ * the backend instead of erroring, which is why staging validates them
+ * client-side against "known or staged".
+ */
+export interface CreateTagRequest {
+  names: string[];
+  category: string;
+  implications?: string[];
+  suggestions?: string[];
+}
+
 export interface UpdatePoolRequest {
   version: number;
   // names?: string[];

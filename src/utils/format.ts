@@ -130,3 +130,8 @@ export function getPostInfoSummary(post: ScrapedPostDetails) {
   }
   return parts.join(" / ");
 }
+
+// Cool people would use https://kazupon.github.io/vue-i18n/guide/pluralization.html
+export function getCreatedTagsText(count: number) {
+  return `Created ${count} new tag${count > 1 ? "s" : ""}`;
+}

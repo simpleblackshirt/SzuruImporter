@@ -13,6 +13,7 @@ import { MicroTag, PostAlreadyUploadedError, UpdatePoolRequest } from "~/api/mod
 import SzurubooruApi from "~/api";
 import { candidateTagNames, computeTagUpdates } from "./tagFixup";
 import type { ScrapedTagInfo } from "./tagFixup";
+import { countNewTagNames, createStagedTags, fetchExistingTagNames } from "./stagedTagCreation";
 import { registerDnrRefererRules } from "~/webRequest/dnrReferer";
 import { hasWebRequestBlocking, isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
 import "./contextMenu";
@@ -134,6 +135,39 @@ async function uploadPost(data: PostUploadCommandData) {
       console.log("contentToken is undefined. This could be a problem for some sources!");
     }
 
+    // Accurate "created tags" counting + adoption input: one batched
+    // existence check over ALL post tags (backend-auto-created scraped tags
+    // count too, not just staged ones). On failure the tag banners are
+    // suppressed entirely - success only - because a partial "Created N"
+    // number would be guesswork.
+    const postTagNames = [...new Set(data.post.tags.map((x) => x.names[0]))].filter((x) => x.length > 0);
+    let existingNames: Set<string> | undefined;
+    let preCheckOk = false;
+    try {
+      existingNames = await fetchExistingTagNames(szuru, postTagNames);
+      preCheckOk = true;
+    } catch (ex) {
+      console.warn("Tag existence pre-check failed; tag banners suppressed:", ex);
+    }
+
+    // Materialize staged tags (creation-card confirmations) BEFORE the post
+    // is created, so they are born with the intended category/implications
+    // and with a usage count from this very post. Tags removed from the draft
+    // before the save are not staged anymore and never get created.
+    const stagedResult = await createStagedTags(szuru, data.post.tags, existingNames ?? new Set());
+    if (stagedResult.warning) {
+      info.tagCreationWarning = stagedResult.warning;
+    }
+    if (preCheckOk) {
+      const newTagCount = countNewTagNames(postTagNames, existingNames!);
+      if (newTagCount > 0) {
+        info.createdTagsState = { totalCreated: newTagCount };
+      }
+    }
+    if (info.createdTagsState || info.tagCreationWarning) {
+      pushInfo();
+    }
+
     const createdPost = await createPostWithFallback(szuru, data, contentToken);
 
     info.state = "uploaded";
@@ -144,7 +178,7 @@ async function uploadPost(data: PostUploadCommandData) {
     // New tags are created by szurubooru in its DEFAULT category (whatever the
     // instance named it), so the categories need fixing afterwards.
     const changedTags = await applyTagFixup(szuru, data.post.tags, createdPost.tags);
-    if (changedTags > 0) {
+    if (preCheckOk && changedTags > 0) {
       info.updateTagsState = { totalChanged: changedTags };
       pushInfo();
     }
@@ -220,6 +254,36 @@ async function updatePost(data: PostUpdateCommandData) {
     const szuru = SzurubooruApi.createFromConfig(data.selectedSite);
 
     pushInfo();
+
+    // Accurate "created tags" counting for merges: the same pre-save
+    // existence check as the upload flow, over the tags the merge puts on
+    // the post. No tag change or failed check = no tag banners (success
+    // only). Scrape-fixup after the update is intentionally not counted here
+    // (the merge UI has no per-tag state display).
+    const tagNames = [...new Set(data.updateRequest.tags ?? [])].filter((x) => x.length > 0);
+    let existingNames: Set<string> | undefined;
+    let preCheckOk = false;
+    if (tagNames.length > 0) {
+      try {
+        existingNames = await fetchExistingTagNames(szuru, tagNames);
+        preCheckOk = true;
+      } catch (ex) {
+        console.warn("Tag existence pre-check failed; tag banners suppressed:", ex);
+      }
+    }
+
+    // Materialize staged tags (creation-card confirmations from the merge
+    // page) before the update, same as the upload flow.
+    const stagedResult = await createStagedTags(szuru, data.scrapedTags, existingNames ?? new Set());
+    if (stagedResult.warning) {
+      info.tagCreationWarning = stagedResult.warning;
+    }
+    if (preCheckOk) {
+      const newTagCount = countNewTagNames(tagNames, existingNames!);
+      if (newTagCount > 0) {
+        info.createdTagsState = { totalCreated: newTagCount };
+      }
+    }
 
     const updatedPost = await szuru.updatePost(data.postId, data.updateRequest);
 

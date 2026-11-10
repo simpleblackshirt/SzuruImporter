@@ -18,6 +18,8 @@ import { useContentInfo } from "../composables/useContentInfo";
 import { useGrabPost } from "../composables/useGrabPost";
 import { useUpload } from "../composables/useUpload";
 import { pushTagWithImplications } from "../composables/tagImplications";
+import { clearStagedState, dedupeStaged, stripStagedImplications, toStagedInfos, type StagedTagInfo } from "~/utils/staged-tags";
+import { encodeTagName, getCreatedTagsText } from "~/utils";
 
 const pop = usePopupStore();
 
@@ -36,6 +38,27 @@ const { loadTagCounts } = useTagCounts(szuru);
 const { fetchPostsInfo } = useContentInfo(pop.posts);
 const { grabPost, pickupStashedGrab } = useGrabPost({ enableAutoSearch, findSimilar, loadTagCounts, fetchPostsInfo });
 const { upload } = useUpload({ szuru, selectedSite });
+
+// Staged (creation-card) entries of the current session, deduped by name -
+// with "keep tags between posts" the same staged entry can sit on several
+// posts. Drives the autocomplete merge (re-adding a staged tag to another
+// post joins it with its staged state).
+const stagedTagInfos = computed<StagedTagInfo[]>(() =>
+  dedupeStaged(pop.posts.flatMap((x) => toStagedInfos(x.tags))),
+);
+
+// Staged entries of the selected post only: a creation card may reference
+// these as implication targets, because their save is the one that creates
+// them. Staged entries on other posts must not satisfy validation - the save
+// at hand could never materialize that edge.
+const selectedStagedTagInfos = computed<StagedTagInfo[]>(() =>
+  pop.selectedPost ? toStagedInfos(pop.selectedPost.tags) : [],
+);
+
+// Tags currently awaiting a creation-card decision (do not exist on the
+// instance, staging enabled). One card per tag: rapid adds don't drop
+// earlier cards, mirroring the spec's "creation card attached to that tag".
+const pendingTags = ref<TagDetails[]>([]);
 
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
 // This should only be used as if it were readonly, because the instanceId might change.
@@ -80,6 +103,13 @@ watch(
     if (value != oldValue) {
       // Update selectedSiteId in config
       cfg.value.selectedSiteId = value;
+      // Staged choices belong to the instance they were made against:
+      // switching targets clears them, so tags honestly show as unknown
+      // ("new") again instead of materializing on the wrong instance.
+      for (const post of pop.posts) {
+        clearStagedState(post.tags);
+      }
+      pendingTags.value = [];
       // Call findSimilar if wanted.
       if (cfg.value.autoSearchSimilar && pop.selectedPost) {
         findSimilar(pop.selectedPost);
@@ -93,6 +123,8 @@ function openOptionsPage() {
 }
 
 function removeTag(tag: TagDetails) {
+  const wasStaged = !!tag.staged;
+
   if (cfg.value.popup.keepTagsBetweenPosts) {
     // Remove the tag from every post by name. Carried tags would otherwise
     // resurrect on the next switch via a post that still had the tag.
@@ -106,6 +138,15 @@ function removeTag(tag: TagDetails) {
     const idx = pop.selectedPost.tags.indexOf(tag);
     if (idx != -1) {
       pop.selectedPost.tags.splice(idx, 1);
+    }
+  }
+
+  if (wasStaged) {
+    // Removal propagates: strip the removed name from every staged tag's
+    // implication list, so a save can't resurrect it via the backend's
+    // auto-create of unknown implication names.
+    for (const post of pop.posts) {
+      stripStagedImplications(post.tags, tag.name);
     }
   }
 }
@@ -130,6 +171,73 @@ function addTag(tag: TagDetails) {
     // its implications against the post's tag list.
     pushTagWithImplications(pop.selectedPost.tags, tag, cfg.value.addTagImplications);
   }
+}
+
+/**
+ * A tag that arrives without instance data was typed manually and might still
+ * exist on the instance (loadTagCounts off, stale data, exact-name entry).
+ * With staging enabled, such tags get one existence check: found - enrich and
+ * add normally; not found - open the creation card.
+ */
+async function addTagWithStaging(tag: TagDetails) {
+  if (!pop.selectedPost || tag.name.length == 0) return;
+
+  if (!cfg.value.stagedTagCreation || tag.staged || tag.category !== undefined || tag.usages !== undefined) {
+    addTag(tag);
+    return;
+  }
+
+  try {
+    const res = await szuru.value?.getTags(encodeTagName(tag.name), 0, 1, ["names", "category", "usages", "implications"]);
+    if (res && res.results.length > 0) {
+      const instanceTag = res.results.find((x) => x.names.includes(tag.name));
+      if (instanceTag) {
+        // Exact name match: enrich from the instance (category/usages) and
+        // add like any backend-known tag.
+        addTag(TagDetails.fromTag(instanceTag));
+      } else {
+        // Alias of an existing tag: stock behavior (the backend resolves
+        // aliases at save time; staging an alias would be wrong).
+        addTag(tag);
+      }
+      return;
+    }
+  } catch (ex) {
+    // The check failing must not block adding: fall through to the card -
+    // confirming re-validates against the instance.
+    console.warn("Tag existence check failed:", ex);
+  }
+
+  // One card per name: re-typing a name that already awaits a decision
+  // replaces nothing and adds nothing.
+  if (!pendingTags.value.some((x) => x.name == tag.name)) {
+    pendingTags.value.push(tag);
+  }
+}
+
+function dismissPendingTag(tag: TagDetails) {
+  const idx = pendingTags.value.indexOf(tag);
+  if (idx != -1) {
+    pendingTags.value.splice(idx, 1);
+  }
+}
+
+function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: string[] }) {
+  dismissPendingTag(tag);
+  if (!pop.selectedPost) return;
+
+  // Staging only: optimistic local state, zero server writes. The tag is
+  // created through the API when the post is saved.
+  tag.category = choice.category;
+  tag.staged = { implications: choice.implications };
+  // No client-side implication expansion for staged tags: their implications
+  // materialize server-side at save time.
+  pushTagWithImplications(pop.selectedPost.tags, tag, false);
+}
+
+function skipStagedTag(tag: TagDetails) {
+  dismissPendingTag(tag);
+  addTag(tag);
 }
 
 function addPool(pool: PoolDetails) {
@@ -241,6 +349,14 @@ useDark();
         <span>{{ getUpdatedTagsText(instanceSpecificData.uploadState?.updateTagsState?.totalChanged) }}</span>
       </div>
 
+      <div v-if="instanceSpecificData?.uploadState?.createdTagsState?.totalCreated" class="bg-success">
+        <span>{{ getCreatedTagsText(instanceSpecificData.uploadState?.createdTagsState?.totalCreated) }}</span>
+      </div>
+
+      <div v-if="instanceSpecificData?.uploadState?.tagCreationWarning" class="bg-warning">
+        <span>{{ instanceSpecificData.uploadState.tagCreationWarning }}</span>
+      </div>
+
       <!--
         Info messages
       -->
@@ -329,7 +445,21 @@ useDark();
 
       <PopupSection header="Tags" toggleable v-model="cfg.popup.expandTags">
         <div class="section-row">
-          <TagInput :szuru="szuru" @add-tag="addTag" />
+          <TagInput :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
+        </div>
+
+        <div
+          class="section-row"
+          v-for="tag in pendingTags"
+          :key="tag.name"
+        >
+          <TagCreationCard
+            :szuru="szuru"
+            :tag-name="tag.name"
+            :staged-tags="selectedStagedTagInfos"
+            @confirm="(choice) => confirmStagedTag(tag, choice)"
+            @skip="skipStagedTag(tag)"
+          />
         </div>
 
         <div class="section-row" v-if="pop.posts.length > 1">

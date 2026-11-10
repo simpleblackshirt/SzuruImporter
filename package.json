@@ -2,7 +2,7 @@
   "name": "szuru-importer",
   "displayName": "Szuru Importer",
   "description": "Import media from various sites into szurubooru.",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "private": true,
   "type": "module",
   "scripts": {

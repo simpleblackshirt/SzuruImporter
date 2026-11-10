@@ -10,7 +10,7 @@ Fork of [neobooru/SzuruChrome](https://github.com/neobooru/SzuruChrome). Improve
 - **Context-menu element grabbing** — right-click any image/video/link to grab just that element; grabs are stashed and picked up by the popup when opened, and raw CDN URLs are rewritten to fetchable ones (page grabs are only offered on sites with a matching scraper)
 - **Site adapter registry** covering all 22 [neo-scraper](https://github.com/simpleblackshirt/neo-scraper) engines, with source dedup across host-site families (e.g. weibo/sinaimg)
 - **New engines via the neo-scraper fork**: Lofter, Weibo, Xiaohongshu, plus Bluesky tags — and engine accuracy fixes across Twitter, Pixiv, Weibo, Xiaohongshu, Lofter, and Bluesky
-- **Tag handling**: tag categories filled from the backend so known tags show colored, plus an optional setting to replace existing aliases with primary tag names
+- **Tag handling**: tag categories filled from the backend so known tags show colored, plus an optional setting to replace existing aliases with primary tag names. New tags can be staged with a category and implications via a creation card right when they are added - the tag is only created on the server when the post is actually saved (never as an orphan), born with the chosen category/implications, and degrades to plain stock behavior when tag-creation permission is missing
 - **Faster tag/pool autocomplete**: queries are debounced (250 ms) and in-flight requests cancelled, inputs up to 2 characters search as a prefix (`ha*`) while longer ones search as a substring (`*hair*` — the expensive shape for the backend), and a typed `*` is always passed through verbatim so `*hair*` / `lo*hair` do explicit wildcard searches. Also fixes a crash when typing a stray `%`. Tag categories can be deprioritized in the settings, sorting e.g. artist tags to the bottom of the dropdown
 - **Refactoring and package updates**: composables extracted from the popup (grab/upload/tag counts/similar search/content info/merge changeset), ESLint 10 flat config, PrimeVue 5, Pinia 4, Vitest 5, and dependency majors across the board
 
@@ -73,6 +73,7 @@ git config core.hooksPath .githooks
 
 - **Popup / options** hot-swap via dev-server HMR (Firefox needs a temporary add-on load and 147+ for it).
 - **Background** has no HMR: an MV3 background cannot load its script from the dev server, so it's a plain rebuilt file — reload via web-ext or manually.
+- The dev server port (3303, overridable via `PORT`) is **strict**: `pnpm dev` fails if it's occupied. The extension's dev stubs hardcode the port, so a silent fallback to another port would leave the popup loading stale code from the old server. After switching between `pnpm build` and `pnpm dev`, reload the add-on (web-ext auto-reload, the `r` key, or about:debugging → Reload) — the manifest content itself differs between the two modes.
 - **Content scripts** are rebuilt on change and reinjected into every page on navigation by a dev-only hook (`src/background/contentScriptHMR.ts`), so a page reload picks them up.
 
 For the background's referer/runtime design (DNR session rules on Chromium vs. blocking webRequest on Firefox), see `docs/plan/20261015-mv3-migration/t3-mv3-background-runtime.md`.

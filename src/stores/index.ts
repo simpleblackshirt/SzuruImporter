@@ -25,6 +25,7 @@ export const cfg = useStorageLocal(
     sites: [] as Array<SzuruSiteConfig>,
     selectedSiteId: undefined as string | undefined,
     addTagImplications: true,
+    stagedTagCreation: true,
     addAllParsedTags: true,
     merge: {
       expandOptions: true,

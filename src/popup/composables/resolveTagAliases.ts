@@ -32,6 +32,9 @@ export function resolveTagAliases(tags: TagDetails[], instanceTags: Tag[]): TagD
       // Rewritten tags are fresh instances so the input stays untouched.
       next = new TagDetails([primary], tag.category, tag.usages, tag.profileUrl);
       next.implications = tag.implications;
+      // Staged state survives the rewrite: the entry was staged under the
+      // alias name, and the save-time race check resolves its fate.
+      if (tag.staged) next.staged = tag.staged;
     }
 
     const existingIndex = keptAt.get(next.name);

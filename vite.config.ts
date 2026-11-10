@@ -72,6 +72,10 @@ export default defineConfig(({ command }) => ({
   base: command === "serve" ? `http://localhost:${port}/` : "/dist/",
   server: {
     port,
+    // The extension's dev stubs (scripts/prepare.ts) hardcode this port: a
+    // silent bump to 3304 would leave the popup loading stale code from
+    // whatever occupies 3303. Fail loudly instead.
+    strictPort: true,
     hmr: {
       host: "localhost",
     },
