@@ -60,6 +60,18 @@ const selectedStagedTagInfos = computed<StagedTagInfo[]>(() =>
 // earlier cards, mirroring the spec's "creation card attached to that tag".
 const pendingTags = ref<TagDetails[]>([]);
 
+// Component refs of the open cards, by tag name - lets a second Enter press
+// (empty tag input) confirm the most recent pending card without clicking it.
+const cardRefs = new Map<string, { confirm: () => void }>();
+
+function setCardRef(name: string, el: unknown) {
+  if (el) {
+    cardRefs.set(name, el as { confirm: () => void });
+  } else {
+    cardRefs.delete(name);
+  }
+}
+
 // (Reactive) shorthand for `main.selectedPost.instanceSpecificData.get(config.selectedSiteId)`.
 // This should only be used as if it were readonly, because the instanceId might change.
 const instanceSpecificData = readonly(
@@ -180,7 +192,19 @@ function addTag(tag: TagDetails) {
  * add normally; not found - open the creation card.
  */
 async function addTagWithStaging(tag: TagDetails) {
-  if (!pop.selectedPost || tag.name.length == 0) return;
+  if (!pop.selectedPost) return;
+
+  // Enter on an empty input with a pending card = "press that card's
+  // button": confirm() runs the card's real logic (untouched -> plain add,
+  // modified -> staged; validation failure keeps the card open). Multiple
+  // pending cards resolve newest-first, one press each.
+  if (tag.name.length == 0) {
+    const last = pendingTags.value.at(-1);
+    if (last) {
+      cardRefs.get(last.name)?.confirm();
+    }
+    return;
+  }
 
   if (!cfg.value.stagedTagCreation || tag.staged || tag.category !== undefined || tag.usages !== undefined) {
     addTag(tag);
@@ -272,6 +296,20 @@ onMounted(async () => {
     }
   }
 });
+
+// Ctrl+Enter (Cmd+Enter on Mac) uploads the selected post - same as the
+// Import button; the uploading guard in useUpload prevents re-entry.
+function onKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+    e.preventDefault();
+    if (pop.selectedPost) {
+      upload();
+    }
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 useDark();
 </script>
@@ -448,12 +486,9 @@ useDark();
           <TagInput :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
         </div>
 
-        <div
-          class="section-row"
-          v-for="tag in pendingTags"
-          :key="tag.name"
-        >
+        <div class="section-row" v-for="tag in pendingTags" :key="tag.name">
           <TagCreationCard
+            :ref="(el) => setCardRef(tag.name, el)"
             :szuru="szuru"
             :tag-name="tag.name"
             :staged-tags="selectedStagedTagInfos"
@@ -518,7 +553,7 @@ useDark();
       <div class="popup-section">
         <div style="display: flex; gap: 5px">
           <button v-if="!cfg.autoSearchSimilar" class="primary" @click="clickFindSimilar">Find similar</button>
-          <button class="primary full" @click="upload">Import</button>
+          <button class="primary full" title="Ctrl+Enter" @click="upload">Import</button>
           <!-- TODO: Add button to open this popup in fullscreen. -->
         </div>
       </div>

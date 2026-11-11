@@ -42,6 +42,18 @@ const stagedTagInfos = computed<StagedTagInfo[]>(() => dedupeStaged(toStagedInfo
 // Tags currently awaiting a creation-card decision.
 const pendingTags = ref<TagDetails[]>([]);
 
+// Component refs of the open cards, by tag name - a second Enter press
+// (empty tag input) confirms the most recent pending card.
+const cardRefs = new Map<string, { confirm: () => void }>();
+
+function setCardRef(name: string, el: unknown) {
+  if (el) {
+    cardRefs.set(name, el as { confirm: () => void });
+  } else {
+    cardRefs.delete(name);
+  }
+}
+
 // Computed stuff.
 const sourcesAdded = ref(0);
 const sourcesRemoved = ref(0);
@@ -80,7 +92,15 @@ function addTag(tag: TagDetails) {
  * open the creation card.
  */
 async function addTagWithStaging(tag: TagDetails) {
-  if (tag.name.length == 0) return;
+  // Enter on an empty input with a pending card = "press that card's
+  // button" (newest first, one press each) - see PopupMain.
+  if (tag.name.length == 0) {
+    const last = pendingTags.value.at(-1);
+    if (last) {
+      cardRefs.get(last.name)?.confirm();
+    }
+    return;
+  }
 
   if (!cfg.value.stagedTagCreation || tag.staged || tag.category !== undefined || tag.usages !== undefined) {
     addTag(tag);
@@ -172,6 +192,10 @@ function getPostUrl(postId: number): string {
 }
 
 async function mergeChanges() {
+  // Re-entry guard: a merge already in flight (double-click or a second
+  // Ctrl+Enter) must not fire another update command.
+  if (merge.uploadInfo.some((x) => x.info.state == "uploading")) return;
+
   merge.genericError = undefined;
 
   if (!scrapedPost) {
@@ -255,7 +279,6 @@ onMounted(async () => {
   // Clear upload info and error.
   merge.uploadInfo.splice(0);
   merge.genericError = undefined;
-
   // Load existing post data.
   existingPostRo = await szuru?.getPost(props.postId);
 
@@ -277,6 +300,18 @@ onMounted(async () => {
     }
   }
 });
+
+// Ctrl+Enter (Cmd+Enter on Mac) merges - same as the Merge changes button;
+// the uploading guard in mergeChanges prevents re-entry.
+function onKeydown(e: KeyboardEvent) {
+  if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+    e.preventDefault();
+    mergeChanges();
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <template>
@@ -323,7 +358,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <button class="primary full" @click="mergeChanges">Merge changes</button>
+          <button class="primary full" title="Ctrl+Enter" @click="mergeChanges">Merge changes</button>
         </div>
       </div>
 
@@ -397,6 +432,7 @@ onMounted(async () => {
 
         <div class="section-row" v-for="tag in pendingTags" :key="tag.name">
           <TagCreationCard
+            :ref="(el) => setCardRef(tag.name, el)"
             :szuru="szuru"
             :tag-name="tag.name"
             :staged-tags="stagedTagInfos"

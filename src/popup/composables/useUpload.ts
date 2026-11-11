@@ -22,6 +22,10 @@ export function useUpload(deps: UploadDeps) {
     // Don't try to upload if an exact copy is already on the server.
     if (instanceSpecificData?.reverseSearchResult?.exactPostId) return;
 
+    // Re-entry guard: an upload already in flight (double-click or a second
+    // Ctrl+Enter) must not fire another upload command.
+    if (instanceSpecificData?.uploadState?.state == "uploading") return;
+
     if (instanceSpecificData) {
       instanceSpecificData.uploadState = { state: "uploading" };
     }

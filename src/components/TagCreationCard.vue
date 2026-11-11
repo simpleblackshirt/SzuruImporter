@@ -172,6 +172,10 @@ async function confirm() {
 function skip() {
   emit("skip");
 }
+
+// Lets a parent confirm this card programmatically - a second Enter press
+// (empty tag input) acts as "press the button" without focusing it.
+defineExpose({ confirm });
 </script>
 
 <template>
