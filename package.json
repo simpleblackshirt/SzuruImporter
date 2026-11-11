@@ -2,7 +2,7 @@
   "name": "szuru-importer",
   "displayName": "Szuru Importer",
   "description": "Import media from various sites into szurubooru.",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "private": true,
   "type": "module",
   "scripts": {
@@ -36,7 +36,7 @@
     "deepmerge": "^4.3.1",
     "es-toolkit": "^1.53.1",
     "markdown-it": "^15.0.2",
-    "neo-scraper": "git+https://github.com/simpleblackshirt/neo-scraper.git#v0.14.3",
+    "neo-scraper": "git+https://github.com/simpleblackshirt/neo-scraper.git#v0.14.4",
     "pinia": "^4.1.0",
     "primeflex": "^4.0.0",
     "primevue": "^5.0.2",
