@@ -20,6 +20,10 @@ export interface ShortcutActions {
   nextPost?: () => void;
   /** k - toggle "keep tags between posts" (popup only). */
   toggleKeepTags?: () => void;
+  /** m - enter merge mode for the exact/similar post (popup only). */
+  merge?: () => void;
+  /** i - toggle which image to keep on the merge page (merge only). */
+  toggleImage?: () => void;
   /** / - drop the caret into the tag input. */
   focusTagInput(): void;
 }
@@ -79,6 +83,14 @@ export function useKeyboardShortcuts(actions: ShortcutActions, cheatsheetOpen: R
       case "k":
         e.preventDefault();
         actions.toggleKeepTags?.();
+        break;
+      case "m":
+        e.preventDefault();
+        actions.merge?.();
+        break;
+      case "i":
+        e.preventDefault();
+        actions.toggleImage?.();
         break;
       case "/":
         e.preventDefault();

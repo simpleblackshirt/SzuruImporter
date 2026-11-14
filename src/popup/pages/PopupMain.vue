@@ -5,6 +5,7 @@ import { TagDetails, PoolDetails, ScrapedPostDetails } from "~/models";
 import { isMobile } from "~/env";
 import { cfg, usePopupStore } from "~/stores";
 import SzurubooruApi from "~/api";
+import { useRouter } from "vue-router";
 import { getSimilarPosts } from "../composables/similarPosts";
 import { useSimilarSearch } from "../composables/useSimilarSearch";
 import { useTagCounts } from "../composables/useTagCounts";
@@ -336,12 +337,32 @@ const shortcuts = [
   { keys: "s", label: "Cycle safety" },
   { keys: ", / .", label: "Previous / next post" },
   { keys: "k", label: "Toggle keep tags between posts" },
+  { keys: "m", label: "Merge into the exact/similar post (when found)" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
   { keys: "Backspace", label: "On an empty input: remove the last tag / pool / implication" },
   { keys: "Esc", label: "Close dropdown, skip new-tag card, close popup" },
   { keys: "?", label: "Toggle this cheat sheet" },
 ];
+
+// The merge route is entered by the Merge links next to the exact/similar
+// post banners; m does the same without reaching for the mouse.
+const router = useRouter();
+
+const mergeTargetPostId = computed(() => {
+  const exact = instanceSpecificData.value?.reverseSearchResult?.exactPostId;
+  if (exact) return exact;
+  return getSimilarPosts(instanceSpecificData.value?.reverseSearchResult)[0]?.id;
+});
+
+function openMerge() {
+  if (mergeTargetPostId.value !== undefined && cfg.value.selectedSiteId) {
+    router.push({
+      name: "merge",
+      params: { siteId: cfg.value.selectedSiteId, postId: String(mergeTargetPostId.value) },
+    });
+  }
+}
 
 function onTagInputBackspace() {
   // Chip-input convention: Backspace on the empty input removes the last tag.
@@ -441,6 +462,7 @@ useKeyboardShortcuts(
     previousPost: () => selectNeighborPost(-1),
     nextPost: () => selectNeighborPost(1),
     toggleKeepTags,
+    merge: openMerge,
     focusTagInput: () => tagInput.value?.focus(),
   },
   cheatsheetOpen,

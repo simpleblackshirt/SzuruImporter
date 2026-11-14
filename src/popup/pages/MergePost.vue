@@ -312,6 +312,7 @@ const cheatsheetOpen = ref(false);
 const shortcuts = [
   { keys: "Ctrl+Enter", label: "Merge changes" },
   { keys: "s", label: "Cycle safety" },
+  { keys: "i", label: "Toggle which image to keep" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
   { keys: "Backspace", label: "On an empty input: remove the last tag / implication" },
@@ -321,6 +322,12 @@ const shortcuts = [
 
 // Dropped into by the / shortcut - the "Tags to add" input.
 const tagInput = ref<{ focus: () => void } | null>(null);
+
+function toggleImageToKeep() {
+  // Flip the "Content" choice between the existing post's image and the
+  // scraped one; the radio state is the visible feedback.
+  imageToKeep.value = imageToKeep.value == "new" ? "current" : "new";
+}
 
 function removeLastTagToAdd() {
   // Chip-input convention: Backspace on the empty input removes the last
@@ -347,6 +354,7 @@ useKeyboardShortcuts(
     cycleSafety: () => {
       post.value.safety = cycleSafety(post.value.safety);
     },
+    toggleImage: toggleImageToKeep,
     focusTagInput: () => tagInput.value?.focus(),
   },
   cheatsheetOpen,

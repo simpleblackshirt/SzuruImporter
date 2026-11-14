@@ -28,6 +28,8 @@ The popup is built to be driven entirely from the keyboard. `Ctrl+Shift+U` (a br
 | `s`                                   | Cycle safety safe → sketchy → unsafe                                             |
 | `,` / `.`                             | Previous / next grabbed post                                                     |
 | `k`                                   | Toggle "keep tags between posts"                                                 |
+| `m`                                   | Merge into the exact/similar post when one was found                             |
+| `i`                                   | Merge page: toggle which image to keep                                           |
 | `/`                                   | Focus the tag input                                                              |
 | `↑` / `↓`                             | Move in the autocomplete dropdown                                                |
 | `PageUp` / `PageDown`, `Home` / `End` | Jump 5 rows / to the ends of the dropdown                                        |
@@ -36,7 +38,7 @@ The popup is built to be driven entirely from the keyboard. `Ctrl+Shift+U` (a br
 | `Esc`                                 | Layered: close dropdown → skip new-tag card (plain add) → close popup            |
 | `?`                                   | Toggle the shortcut cheat sheet                                                  |
 
-Single-key shortcuts never fire while you are typing in a text field. The merge page shares `s`, `/`, `Tab`, `Backspace` and the layered `Esc` behavior; it has no post switching or upload-and-advance.
+Single-key shortcuts never fire while you are typing in a text field. The merge page shares `s`, `i`, `/`, `Tab`, `Backspace` and the layered `Esc` behavior; it has no post switching or upload-and-advance.
 
 ## Supported sites
 
