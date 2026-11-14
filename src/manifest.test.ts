@@ -88,6 +88,21 @@ describe("MV3 manifest (chromium variant, production)", () => {
     expect(manifest.minimum_chrome_version).toBe("127.0");
   });
 
+  it("should register the _execute_action shortcut that opens the popup", async () => {
+    // Special MV3 command: the browser opens the action popup itself, on both
+    // engines, without action.openPopup()'s gesture gating (see contextMenu.ts).
+    // Declared unconditionally, so it applies to the dev and gecko variants too.
+    const manifest = await getManifestUnder({ NODE_ENV: "production" });
+
+    expect(manifest.commands?._execute_action).toEqual({
+      suggested_key: {
+        default: "Ctrl+Shift+U",
+        mac: "Command+Shift+U",
+      },
+      description: "Open Szuru Importer",
+    });
+  });
+
   it("should omit browser_specific_settings without SZ_GECKO_ID", async () => {
     const manifest = await getManifestUnder({ NODE_ENV: "production" });
 

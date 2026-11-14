@@ -27,6 +27,19 @@ export async function getManifest() {
       default_title: pkg.displayName,
       default_popup: "./dist/popup/index.html",
     },
+    // Special MV3 command: the browser opens the action popup itself, on both
+    // engines, without action.openPopup()'s gesture gating (see contextMenu.ts).
+    // The suggested key is just a default - users can rebind it in the browser's
+    // extension shortcut settings; a conflict leaves the command unbound.
+    commands: {
+      _execute_action: {
+        suggested_key: {
+          default: "Ctrl+Shift+U",
+          mac: "Command+Shift+U",
+        },
+        description: "Open Szuru Importer",
+      },
+    },
     options_ui: {
       page: "./dist/options/index.html",
       open_in_tab: true,

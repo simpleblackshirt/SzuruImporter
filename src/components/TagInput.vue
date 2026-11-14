@@ -16,6 +16,13 @@ const props = defineProps({
 });
 const emit = defineEmits(["addTag"]);
 
+// Forwarded focus: PopupMain drops the caret into the tag field on popup open.
+const autocompleteRef = ref<{ focus: () => void } | null>(null);
+
+defineExpose({
+  focus: () => autocompleteRef.value?.focus(),
+});
+
 function addTag(tag: TagDetails) {
   emit("addTag", tag);
 }
@@ -58,6 +65,7 @@ async function autocompletePopulator(input: string, ct: CancelToken) {
 
 <template>
   <AutocompleteInput
+    ref="autocompleteRef"
     :autocomplete-items="autocompleteItems"
     @add-item="addTag"
     @add-from-current-input="addTagFromCurrentInput"

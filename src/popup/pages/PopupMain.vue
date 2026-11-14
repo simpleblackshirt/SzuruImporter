@@ -82,6 +82,29 @@ const instanceSpecificData = readonly(
   }),
 );
 
+const tagInput = ref<{ focus: () => void } | null>(null);
+
+// Focus the tag input once the grabbed post has rendered, so the
+// shortcut / toolbar flow is "open the popup and type tags". Only the first
+// appearance of a post per popup session focuses: later post switches must
+// not steal the caret mid-interaction. Skipped while the Tags section is
+// collapsed - the section body is v-if'd away, so there is nothing to focus.
+let tagInputFocused = false;
+watch(
+  () => pop.selectedPost,
+  async (post) => {
+    if (!post || tagInputFocused || !cfg.value.popup.expandTags) return;
+    tagInputFocused = true;
+
+    await nextTick();
+    tagInput.value?.focus();
+    // Firefox popups can swallow a programmatic focus fired right at open;
+    // one delayed retry is cheap insurance (refocusing stays a no-op).
+    window.setTimeout(() => tagInput.value?.focus(), 100);
+  },
+  { immediate: true },
+);
+
 watch(
   () => pop.selectedPostId,
   (value, oldValue) => {
@@ -483,7 +506,7 @@ useDark();
 
       <PopupSection header="Tags" toggleable v-model="cfg.popup.expandTags">
         <div class="section-row">
-          <TagInput :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
+          <TagInput ref="tagInput" :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
         </div>
 
         <div class="section-row" v-for="tag in pendingTags" :key="tag.name">

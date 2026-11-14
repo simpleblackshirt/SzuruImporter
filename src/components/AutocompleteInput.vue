@@ -9,6 +9,7 @@ const inputText = ref("");
 const autocompleteShown = ref(false);
 const cancelSource = ref<CancelTokenSource | undefined>(undefined);
 const autocompleteIndex = ref(-1);
+const inputEl = ref<HTMLInputElement | null>(null);
 let debounceTimer: number | undefined;
 
 const props = defineProps({
@@ -92,12 +93,19 @@ watch(inputText, (value) => {
 watch(props, (newValue) => {
   autocompleteShown.value = newValue.autocompleteItems.length > 0;
 });
+
+// Exposed so parents (TagInput -> PopupMain) can drop the caret into the field
+// when the popup opens.
+function focus() {
+  inputEl.value?.focus();
+}
+defineExpose({ focus });
 </script>
 
 <template>
   <div style="display: flex; flex-direction: column">
     <div style="display: flex">
-      <input type="text" v-model="inputText" @keydown="onAddItemKeyDown" autocomplete="off" />
+      <input ref="inputEl" type="text" v-model="inputText" @keydown="onAddItemKeyDown" autocomplete="off" />
       <button class="primary" style="margin-left: 5px" @click="addItemFromCurrentInput">Add</button>
     </div>
 
