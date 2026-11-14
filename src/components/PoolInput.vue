@@ -10,7 +10,7 @@ const autocompleteItems = ref<PoolDetails[]>([]);
 const props = defineProps({
   szuru: Object as PropType<SzurubooruApi>,
 });
-const emit = defineEmits(["addPool"]);
+const emit = defineEmits(["addPool", "backspaceOnEmpty"]);
 
 function addPool(tag: PoolDetails) {
   emit("addPool", tag);
@@ -52,6 +52,7 @@ async function autocompletePopulator(input: string, ct: CancelToken) {
     @add-item="addPool"
     @add-from-current-input="addPoolFromCurrentInput"
     @autocomplete-populator="autocompletePopulator"
+    @backspace-on-empty="emit('backspaceOnEmpty')"
     v-slot="slotProps"
   >
     <span :class="getTagClasses(slotProps.item)">{{ slotProps.item.name }}</span>

@@ -50,9 +50,7 @@ const categoryOptions = computed(() => {
   return cfg.value.tagCategories.map((x) => ({ name: x.name, color: x.color }));
 });
 
-const isUntouched = computed(
-  () => implications.value.length == 0 && selectedCategory.value == initialCategory.value,
-);
+const isUntouched = computed(() => implications.value.length == 0 && selectedCategory.value == initialCategory.value);
 
 function reset() {
   implications.value = [];
@@ -135,6 +133,19 @@ function removeImplication(tag: TagDetails) {
   implications.value = implications.value.filter((x) => x.name != tag.name);
 }
 
+function removeLastImplication() {
+  implications.value.pop();
+}
+
+function onImplicationEscapeIdle(e: KeyboardEvent) {
+  // Escape inside the card's (empty) implication input skips the card: plain
+  // add, no staging. preventDefault keeps the popup open - without a card the
+  // event would natively close it.
+  e.preventDefault();
+  e.stopPropagation();
+  skip();
+}
+
 async function confirm() {
   // An untouched card is equivalent to the stock add, but the stock path is
   // atomic with the post save while staging is not (a failed save after
@@ -196,6 +207,8 @@ defineExpose({ confirm });
         @add-item="addImplication"
         @add-from-current-input="addImplicationFromInput"
         @autocomplete-populator="autocompleteImplications"
+        @backspace-on-empty="removeLastImplication"
+        @escape-idle="onImplicationEscapeIdle"
         v-slot="slotProps"
       >
         <span :class="getTagClasses(slotProps.item)">

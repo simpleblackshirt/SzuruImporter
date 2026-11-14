@@ -10,21 +10,29 @@ interface UploadDeps {
   selectedSite: ComputedRef<SzuruSiteConfig | undefined>;
 }
 
+/**
+ * Result of an upload attempt:
+ * - "sent": the upload command went to the background
+ * - "duplicate": the exact post is already on the server (deliberate no-op)
+ * - "busy": no target site selected or an upload is already in flight
+ */
+export type UploadAttempt = "sent" | "duplicate" | "busy";
+
 /** Sends the selected post to the background script for upload on the selected site. */
 export function useUpload(deps: UploadDeps) {
   const pop = usePopupStore();
   const { szuru, selectedSite } = deps;
 
-  async function upload() {
-    if (!cfg.value.selectedSiteId) return;
+  async function upload(): Promise<UploadAttempt> {
+    if (!cfg.value.selectedSiteId) return "busy";
     const instanceSpecificData = pop.selectedPost?.instanceSpecificData[cfg.value.selectedSiteId];
 
     // Don't try to upload if an exact copy is already on the server.
-    if (instanceSpecificData?.reverseSearchResult?.exactPostId) return;
+    if (instanceSpecificData?.reverseSearchResult?.exactPostId) return "duplicate";
 
     // Re-entry guard: an upload already in flight (double-click or a second
     // Ctrl+Enter) must not fire another upload command.
-    if (instanceSpecificData?.uploadState?.state == "uploading") return;
+    if (instanceSpecificData?.uploadState?.state == "uploading") return "busy";
 
     if (instanceSpecificData) {
       instanceSpecificData.uploadState = { state: "uploading" };
@@ -45,6 +53,7 @@ export function useUpload(deps: UploadDeps) {
       );
       const cmd = new BrowserCommand("upload_post", cmdData);
       await browser.runtime.sendMessage(cmd);
+      return "sent";
     } catch (ex: any) {
       if (instanceSpecificData?.uploadState) {
         instanceSpecificData.uploadState.state = "error";

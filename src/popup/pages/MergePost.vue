@@ -10,7 +10,9 @@ import { emptyPost, ensurePostHasContentToken, getCreatedTagsText, getUrl } from
 import { dedupeStaged, stripStagedImplications, toStagedInfos, type StagedTagInfo } from "~/utils/staged-tags";
 import { encodeTagName } from "~/utils";
 import { appendScrapedSource, mergeChangeset, scrapedMissingTags } from "../composables/mergeChangeset";
+import { useKeyboardShortcuts } from "../composables/useShortcuts";
 import { pushTagWithImplications } from "../composables/tagImplications";
+import { cycleSafety } from "~/utils/keyboard";
 
 const props = defineProps(["siteId", "postId"]);
 const router = useRouter();
@@ -301,17 +303,54 @@ onMounted(async () => {
   }
 });
 
-// Ctrl+Enter (Cmd+Enter on Mac) merges - same as the Merge changes button;
-// the uploading guard in mergeChanges prevents re-entry.
-function onKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+// --- Keyboard workflow -----------------------------------------------------
+// Shared shortcut wiring (Ctrl+Enter, plain keys, cheat sheet) lives in
+// useKeyboardShortcuts; the page-specific actions are bound below.
+
+const cheatsheetOpen = ref(false);
+
+const shortcuts = [
+  { keys: "Ctrl+Enter", label: "Merge changes" },
+  { keys: "s", label: "Cycle safety" },
+  { keys: "/", label: "Focus the tag input" },
+  { keys: "Tab", label: "Accept the highlighted suggestion" },
+  { keys: "Backspace", label: "On an empty input: remove the last tag / implication" },
+  { keys: "Esc", label: "Close dropdown, skip new-tag card, close popup" },
+  { keys: "?", label: "Toggle this cheat sheet" },
+];
+
+// Dropped into by the / shortcut - the "Tags to add" input.
+const tagInput = ref<{ focus: () => void } | null>(null);
+
+function removeLastTagToAdd() {
+  // Chip-input convention: Backspace on the empty input removes the last
+  // queued tag. Existing tags of the post are never touched - removing those
+  // is a deliberate mouse action.
+  const last = tagsToAdd.at(-1);
+  if (last) removeTagToAdd(last);
+}
+
+function onTagInputEscapeIdle(e: KeyboardEvent) {
+  // Escape with the dropdown closed: skip the newest pending creation card
+  // (plain add, popup stays open); without one the popup closes natively.
+  const last = pendingTags.value.at(-1);
+  if (last) {
     e.preventDefault();
-    mergeChanges();
+    e.stopPropagation();
+    skipStagedTag(last);
   }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
+useKeyboardShortcuts(
+  {
+    primary: () => mergeChanges(),
+    cycleSafety: () => {
+      post.value.safety = cycleSafety(post.value.safety);
+    },
+    focusTagInput: () => tagInput.value?.focus(),
+  },
+  cheatsheetOpen,
+);
 </script>
 
 <template>
@@ -427,7 +466,14 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
       <PopupSection header="Tags to add" toggleable v-model="cfg.merge.expandAddTags">
         <div class="section-row">
-          <TagInput :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
+          <TagInput
+            ref="tagInput"
+            :szuru="szuru"
+            :staged-tags="stagedTagInfos"
+            @add-tag="addTagWithStaging"
+            @backspace-on-empty="removeLastTagToAdd"
+            @escape-idle="onTagInputEscapeIdle"
+          />
         </div>
 
         <div class="section-row" v-for="tag in pendingTags" :key="tag.name">
@@ -490,6 +536,8 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
       </PopupSection>
     </div>
   </div>
+
+  <ShortcutCheatsheet v-model="cheatsheetOpen" :shortcuts="shortcuts" />
 </template>
 
 <style scoped lang="scss">

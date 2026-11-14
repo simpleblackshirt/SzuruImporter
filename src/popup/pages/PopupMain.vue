@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import { useDark } from "@vueuse/core";
-import {
-  getUrl,
-  getPostInfoSummary,
-} from "~/utils";
-import {
-  TagDetails,
-  PoolDetails,
-} from "~/models";
+import { getUrl, getPostInfoSummary } from "~/utils";
+import { TagDetails, PoolDetails, ScrapedPostDetails } from "~/models";
 import { isMobile } from "~/env";
 import { cfg, usePopupStore } from "~/stores";
 import SzurubooruApi from "~/api";
@@ -16,10 +10,17 @@ import { useSimilarSearch } from "../composables/useSimilarSearch";
 import { useTagCounts } from "../composables/useTagCounts";
 import { useContentInfo } from "../composables/useContentInfo";
 import { useGrabPost } from "../composables/useGrabPost";
-import { useUpload } from "../composables/useUpload";
+import { useUpload, type UploadAttempt } from "../composables/useUpload";
+import { useKeyboardShortcuts } from "../composables/useShortcuts";
 import { pushTagWithImplications } from "../composables/tagImplications";
-import { clearStagedState, dedupeStaged, stripStagedImplications, toStagedInfos, type StagedTagInfo } from "~/utils/staged-tags";
-import { encodeTagName, getCreatedTagsText } from "~/utils";
+import {
+  clearStagedState,
+  dedupeStaged,
+  stripStagedImplications,
+  toStagedInfos,
+  type StagedTagInfo,
+} from "~/utils/staged-tags";
+import { cycleSafety, encodeTagName, getCreatedTagsText, neighborPostId } from "~/utils";
 
 const pop = usePopupStore();
 
@@ -43,9 +44,7 @@ const { upload } = useUpload({ szuru, selectedSite });
 // with "keep tags between posts" the same staged entry can sit on several
 // posts. Drives the autocomplete merge (re-adding a staged tag to another
 // post joins it with its staged state).
-const stagedTagInfos = computed<StagedTagInfo[]>(() =>
-  dedupeStaged(pop.posts.flatMap((x) => toStagedInfos(x.tags))),
-);
+const stagedTagInfos = computed<StagedTagInfo[]>(() => dedupeStaged(pop.posts.flatMap((x) => toStagedInfos(x.tags))));
 
 // Staged entries of the selected post only: a creation card may reference
 // these as implication targets, because their save is the one that creates
@@ -235,7 +234,12 @@ async function addTagWithStaging(tag: TagDetails) {
   }
 
   try {
-    const res = await szuru.value?.getTags(encodeTagName(tag.name), 0, 1, ["names", "category", "usages", "implications"]);
+    const res = await szuru.value?.getTags(encodeTagName(tag.name), 0, 1, [
+      "names",
+      "category",
+      "usages",
+      "implications",
+    ]);
     if (res && res.results.length > 0) {
       const instanceTag = res.results.find((x) => x.names.includes(tag.name));
       if (instanceTag) {
@@ -320,19 +324,127 @@ onMounted(async () => {
   }
 });
 
-// Ctrl+Enter (Cmd+Enter on Mac) uploads the selected post - same as the
-// Import button; the uploading guard in useUpload prevents re-entry.
-function onKeydown(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key == "Enter") {
+// --- Keyboard workflow -----------------------------------------------------
+// Shared shortcut wiring (Ctrl+Enter, plain keys, cheat sheet) lives in
+// useKeyboardShortcuts; the page-specific actions are bound below.
+
+const cheatsheetOpen = ref(false);
+
+const shortcuts = [
+  { keys: "Ctrl+Enter", label: "Import the selected post" },
+  { keys: "Ctrl+Shift+Enter", label: "Import and advance to the next post" },
+  { keys: "s", label: "Cycle safety" },
+  { keys: ", / .", label: "Previous / next post" },
+  { keys: "k", label: "Toggle keep tags between posts" },
+  { keys: "/", label: "Focus the tag input" },
+  { keys: "Tab", label: "Accept the highlighted suggestion" },
+  { keys: "Backspace", label: "On an empty input: remove the last tag / pool / implication" },
+  { keys: "Esc", label: "Close dropdown, skip new-tag card, close popup" },
+  { keys: "?", label: "Toggle this cheat sheet" },
+];
+
+function onTagInputBackspace() {
+  // Chip-input convention: Backspace on the empty input removes the last tag.
+  const last = pop.selectedPost?.tags.at(-1);
+  if (last) removeTag(last);
+}
+
+function onPoolInputBackspace() {
+  const last = pop.selectedPost?.pools.at(-1);
+  if (last) removePool(last);
+}
+
+function onTagInputEscapeIdle(e: KeyboardEvent) {
+  // Escape with the dropdown closed resolves the topmost interruption layer:
+  // a pending creation card is skipped (plain add, popup stays open). Without
+  // one the event is left alone so the native popup-close happens.
+  const last = pendingTags.value.at(-1);
+  if (last) {
     e.preventDefault();
-    if (pop.selectedPost) {
-      upload();
-    }
+    e.stopPropagation();
+    skipStagedTag(last);
   }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
+function toggleKeepTags() {
+  // The checkbox only renders with more than one post; the shortcut matches
+  // that so it cannot toggle an invisible option.
+  if (pop.posts.length > 1) {
+    cfg.value.popup.keepTagsBetweenPosts = !cfg.value.popup.keepTagsBetweenPosts;
+  }
+}
+
+function selectNeighborPost(delta: -1 | 1) {
+  const id = neighborPostId(pop.posts, pop.selectedPostId, delta);
+  if (id !== undefined) pop.selectedPostId = id;
+}
+
+/**
+ * Ctrl+Shift+Enter: upload, then move to the next grabbed post (the
+ * selectedPostId watcher applies keep-tags / auto-search as usual); close the
+ * popup when this was the last one. Duplicates advance immediately (upload()
+ * was a deliberate no-op), errors stay so the banner remains visible.
+ */
+async function uploadAndAdvance() {
+  const current = pop.selectedPost;
+  const siteId = cfg.value.selectedSiteId;
+  if (!current || !siteId) return;
+
+  let attempt: UploadAttempt;
+  try {
+    attempt = await upload();
+  } catch {
+    return; // upload() already flipped the state to error
+  }
+
+  if (attempt == "duplicate") {
+    advanceAfterUpload(current);
+    return;
+  }
+  if (attempt != "sent") return; // busy: an in-flight upload keeps its own flow
+
+  // Advance once the background confirms this post went through (App.vue
+  // receives set_post_upload_info and mutates this state).
+  const stop = watch(
+    () => current.instanceSpecificData[siteId]?.uploadState?.state,
+    (state) => {
+      if (state == "uploaded") {
+        stop();
+        advanceAfterUpload(current);
+      } else if (state == "error") {
+        stop();
+      }
+    },
+  );
+}
+
+function advanceAfterUpload(post: ScrapedPostDetails) {
+  const nextId = neighborPostId(pop.posts, post.id, 1);
+  if (nextId !== undefined) {
+    pop.selectedPostId = nextId;
+  } else {
+    window.close();
+  }
+}
+
+useKeyboardShortcuts(
+  {
+    primary: () => {
+      if (pop.selectedPost) upload();
+    },
+    primaryAdvance: () => uploadAndAdvance(),
+    cycleSafety: () => {
+      if (pop.selectedPost) {
+        pop.selectedPost.rating = cycleSafety(pop.selectedPost.rating);
+      }
+    },
+    previousPost: () => selectNeighborPost(-1),
+    nextPost: () => selectNeighborPost(1),
+    toggleKeepTags,
+    focusTagInput: () => tagInput.value?.focus(),
+  },
+  cheatsheetOpen,
+);
 
 useDark();
 </script>
@@ -506,7 +618,14 @@ useDark();
 
       <PopupSection header="Tags" toggleable v-model="cfg.popup.expandTags">
         <div class="section-row">
-          <TagInput ref="tagInput" :szuru="szuru" :staged-tags="stagedTagInfos" @add-tag="addTagWithStaging" />
+          <TagInput
+            ref="tagInput"
+            :szuru="szuru"
+            :staged-tags="stagedTagInfos"
+            @add-tag="addTagWithStaging"
+            @backspace-on-empty="onTagInputBackspace"
+            @escape-idle="onTagInputEscapeIdle"
+          />
         </div>
 
         <div class="section-row" v-for="tag in pendingTags" :key="tag.name">
@@ -539,7 +658,7 @@ useDark();
 
       <PopupSection v-if="cfg.popup.showPools" header="Pools" toggleable v-model="cfg.popup.expandPools">
         <div class="section-row">
-          <PoolInput :szuru="szuru" @add-pool="addPool" />
+          <PoolInput :szuru="szuru" @add-pool="addPool" @backspace-on-empty="onPoolInputBackspace" />
         </div>
 
         <div class="section-row">
@@ -576,7 +695,9 @@ useDark();
       <div class="popup-section">
         <div style="display: flex; gap: 5px">
           <button v-if="!cfg.autoSearchSimilar" class="primary" @click="clickFindSimilar">Find similar</button>
-          <button class="primary full" title="Ctrl+Enter" @click="upload">Import</button>
+          <button class="primary full" title="Ctrl+Enter (Ctrl+Shift+Enter: import and advance)" @click="upload">
+            Import
+          </button>
           <!-- TODO: Add button to open this popup in fullscreen. -->
         </div>
       </div>
@@ -595,6 +716,8 @@ useDark();
     <span>No content found</span>
     <AppIcon name="cog" class="cursor-pointer" @click="openOptionsPage" />
   </div>
+
+  <ShortcutCheatsheet v-model="cheatsheetOpen" :shortcuts="shortcuts" />
 </template>
 
 <style scoped lang="scss">

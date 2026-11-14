@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import axios, { CancelTokenSource } from "axios";
+import { nextAutocompleteIndex } from "~/utils/keyboard";
 
 // Query once per typing pause instead of once per keystroke. The backend
 // queries are expensive enough that stacked requests slow each other down.
@@ -18,7 +19,12 @@ const props = defineProps({
     required: true,
   },
 });
-const emit = defineEmits(["addItem", "addFromCurrentInput", "autocompletePopulator"]);
+const emit = defineEmits(["addItem", "addFromCurrentInput", "autocompletePopulator", "backspaceOnEmpty", "escapeIdle"]);
+
+// ARIA combobox wiring: unique ids linking the input to its listbox options.
+const acId = useId();
+const listboxId = `${acId}-listbox`;
+const optionId = (idx: number) => `${acId}-option-${idx}`;
 
 function addItem(item: any) {
   emit("addItem", item);
@@ -35,17 +41,17 @@ function addItemFromCurrentInput() {
 }
 
 function onAddItemKeyDown(e: KeyboardEvent) {
-  if (e.code == "ArrowDown") {
+  // Navigation: arrows step, PageUp/PageDown jump 5 rows, Home/End go to the
+  // ends (the dropdown can hold 100 server results). Clamped, with -1 as the
+  // "nothing highlighted" slot, matching the pre-existing arrow behavior.
+  const nextIndex = nextAutocompleteIndex(e.code, autocompleteIndex.value, props.autocompleteItems.length);
+  if (nextIndex !== undefined) {
     e.preventDefault();
-    if (autocompleteIndex.value < props.autocompleteItems.length - 1) {
-      autocompleteIndex.value++;
-    }
-  } else if (e.code == "ArrowUp") {
-    e.preventDefault();
-    if (autocompleteIndex.value >= 0) {
-      autocompleteIndex.value--;
-    }
-  } else if (e.code == "Enter") {
+    autocompleteIndex.value = nextIndex;
+    return;
+  }
+
+  if (e.code == "Enter") {
     if (autocompleteIndex.value == -1) {
       addItemFromCurrentInput();
     } else {
@@ -54,6 +60,38 @@ function onAddItemKeyDown(e: KeyboardEvent) {
       addItem(itemToAdd);
       inputText.value = ""; // Reset input
     }
+    return;
+  }
+
+  // Tab accepts the highlighted suggestion while keeping the caret in the
+  // field: rapid multi-tag entry without leaving the input. With nothing
+  // highlighted (or no dropdown) Tab moves focus as usual.
+  if (e.code == "Tab" && autocompleteShown.value && autocompleteIndex.value >= 0) {
+    e.preventDefault();
+    addItem(props.autocompleteItems[autocompleteIndex.value]);
+    inputText.value = ""; // Reset input - clearing also hides the dropdown
+    return;
+  }
+
+  if (e.code == "Escape") {
+    if (autocompleteShown.value) {
+      // Layered dismissal: the dropdown closes first, the popup stays open.
+      e.preventDefault();
+      e.stopPropagation();
+      hideAutocomplete();
+      return;
+    }
+    // Dropdown already closed: parents decide (skip a pending creation card,
+    // or let the native popup-close happen).
+    emit("escapeIdle", e);
+    return;
+  }
+
+  // Chip-input convention: Backspace on an empty field removes the last item
+  // (parents wire this to tag/pool/implication removal).
+  if (e.code == "Backspace" && inputText.value.length == 0) {
+    e.preventDefault();
+    emit("backspaceOnEmpty");
   }
 }
 
@@ -105,15 +143,29 @@ defineExpose({ focus });
 <template>
   <div style="display: flex; flex-direction: column">
     <div style="display: flex">
-      <input ref="inputEl" type="text" v-model="inputText" @keydown="onAddItemKeyDown" autocomplete="off" />
+      <input
+        ref="inputEl"
+        type="text"
+        v-model="inputText"
+        @keydown="onAddItemKeyDown"
+        autocomplete="off"
+        role="combobox"
+        aria-haspopup="listbox"
+        :aria-expanded="autocompleteShown ? 'true' : 'false'"
+        :aria-controls="listboxId"
+        :aria-activedescendant="autocompleteShown && autocompleteIndex >= 0 ? optionId(autocompleteIndex) : undefined"
+      />
       <button class="primary" style="margin-left: 5px" @click="addItemFromCurrentInput">Add</button>
     </div>
 
-    <div class="autocomplete-items" v-bind:class="{ show: autocompleteShown }">
+    <div :id="listboxId" role="listbox" class="autocomplete-items" v-bind:class="{ show: autocompleteShown }">
       <div
         v-for="(item, idx) in autocompleteItems"
         @click="onClickAutocompleteItem(item)"
         :key="item.name"
+        role="option"
+        :id="optionId(idx)"
+        :aria-selected="idx == autocompleteIndex ? 'true' : 'false'"
         :class="{
           active: idx == autocompleteIndex,
         }"

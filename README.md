@@ -12,9 +12,31 @@ Fork of [neobooru/SzuruChrome](https://github.com/neobooru/SzuruChrome). Improve
 - **New engines via the neo-scraper fork**: Lofter, Weibo, Xiaohongshu, plus Bluesky tags — and engine accuracy fixes across Twitter, Pixiv, Weibo, Xiaohongshu, Lofter, and Bluesky
 - **Tag handling**: tag categories filled from the backend so known tags show colored, plus an optional setting to replace existing aliases with primary tag names. New tags can be staged with a category and implications via a creation card right when they are added - the tag is only created on the server when the post is actually saved (never as an orphan), born with the chosen category/implications, and degrades to plain stock behavior when tag-creation permission is missing
 - **Faster tag/pool autocomplete**: queries are debounced (250 ms) and in-flight requests cancelled, inputs up to 2 characters search as a prefix (`ha*`) while longer ones search as a substring (`*hair*` — the expensive shape for the backend), and a typed `*` is always passed through verbatim so `*hair*` / `lo*hair` do explicit wildcard searches. Also fixes a crash when typing a stray `%`. Tag categories can be deprioritized in the settings, sorting e.g. artist tags to the bottom of the dropdown
+- **Pure-keyboard workflow**: the whole popup loop is keyboard-driven - import & advance, safety cycling, post switching, keep-tags toggle, chip-style Backspace removal, layered Escape dismissal, Tab-to-accept in the autocomplete, and a `?` cheat sheet
 - **Refactoring and package updates**: composables extracted from the popup (grab/upload/tag counts/similar search/content info/merge changeset), ESLint 10 flat config, PrimeVue 5, Pinia 4, Vitest 5, and dependency majors across the board
 
 The functionality of most of the supported websites not mentioned above has not been checked so there might be things in need of fixing that aren't fixed yet.
+
+## Keyboard workflow
+
+The popup is built to be driven entirely from the keyboard. `Ctrl+Shift+U` (a browser command, rebindable in the browser's extension shortcut settings) opens it with the tag input focused. Press `?` anywhere outside a text field for an in-popup cheat sheet.
+
+| Keys                                  | Action                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------- |
+| `Ctrl+Enter`                          | Import the selected post (merge page: merge changes)                             |
+| `Ctrl+Shift+Enter`                    | Import and advance to the next grabbed post; closes the popup after the last one |
+| `s`                                   | Cycle safety safe → sketchy → unsafe                                             |
+| `,` / `.`                             | Previous / next grabbed post                                                     |
+| `k`                                   | Toggle "keep tags between posts"                                                 |
+| `/`                                   | Focus the tag input                                                              |
+| `↑` / `↓`                             | Move in the autocomplete dropdown                                                |
+| `PageUp` / `PageDown`, `Home` / `End` | Jump 5 rows / to the ends of the dropdown                                        |
+| `Tab`                                 | Accept the highlighted suggestion and keep typing                                |
+| `Backspace`                           | On an empty input: remove the last tag / pool / implication                      |
+| `Esc`                                 | Layered: close dropdown → skip new-tag card (plain add) → close popup            |
+| `?`                                   | Toggle the shortcut cheat sheet                                                  |
+
+Single-key shortcuts never fire while you are typing in a text field. The merge page shares `s`, `/`, `Tab`, `Backspace` and the layered `Esc` behavior; it has no post switching or upload-and-advance.
 
 ## Supported sites
 
