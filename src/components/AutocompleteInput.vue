@@ -19,7 +19,7 @@ const props = defineProps({
     required: true,
   },
 });
-const emit = defineEmits(["addItem", "addFromCurrentInput", "autocompletePopulator", "backspaceOnEmpty", "escapeIdle"]);
+const emit = defineEmits(["addItem", "addFromCurrentInput", "autocompletePopulator", "backspaceOnEmpty"]);
 
 // ARIA combobox wiring: unique ids linking the input to its listbox options.
 const acId = useId();
@@ -70,20 +70,6 @@ function onAddItemKeyDown(e: KeyboardEvent) {
     e.preventDefault();
     addItem(props.autocompleteItems[autocompleteIndex.value]);
     inputText.value = ""; // Reset input - clearing also hides the dropdown
-    return;
-  }
-
-  if (e.code == "Escape") {
-    if (autocompleteShown.value) {
-      // Layered dismissal: the dropdown closes first, the popup stays open.
-      e.preventDefault();
-      e.stopPropagation();
-      hideAutocomplete();
-      return;
-    }
-    // Dropdown already closed: parents decide (skip a pending creation card,
-    // or let the native popup-close happen).
-    emit("escapeIdle", e);
     return;
   }
 

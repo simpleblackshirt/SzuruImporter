@@ -137,15 +137,6 @@ function removeLastImplication() {
   implications.value.pop();
 }
 
-function onImplicationEscapeIdle(e: KeyboardEvent) {
-  // Escape inside the card's (empty) implication input skips the card: plain
-  // add, no staging. preventDefault keeps the popup open - without a card the
-  // event would natively close it.
-  e.preventDefault();
-  e.stopPropagation();
-  skip();
-}
-
 async function confirm() {
   // An untouched card is equivalent to the stock add, but the stock path is
   // atomic with the post save while staging is not (a failed save after
@@ -212,7 +203,6 @@ defineExpose({ confirm });
         @add-from-current-input="addImplicationFromInput"
         @autocomplete-populator="autocompleteImplications"
         @backspace-on-empty="removeLastImplication"
-        @escape-idle="onImplicationEscapeIdle"
         v-slot="slotProps"
       >
         <span :class="getTagClasses(slotProps.item)">

@@ -344,8 +344,12 @@ const shortcuts = [
   { keys: "m", label: "Merge into the exact/similar post (when found)" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
-  { keys: "Backspace", label: "On an empty input: remove the last tag / pool / implication" },
-  { keys: "Esc", label: "Close dropdown, skip new-tag card, close popup" },
+  {
+    keys: "Backspace",
+    label:
+      "Empty tag input: dismiss the pending new-tag card (without adding); otherwise remove the last tag / pool / implication",
+  },
+  { keys: "Esc", label: "Dismiss the popup" },
   { keys: "?", label: "Toggle this cheat sheet" },
 ];
 
@@ -369,7 +373,17 @@ function openMerge() {
 }
 
 function onTagInputBackspace() {
-  // Chip-input convention: Backspace on the empty input removes the last tag.
+  // Backspace on the empty tag input: with a pending creation card it
+  // cancels the newest one - dismissed WITHOUT adding the tag (Enter is the
+  // confirm path). This is also the dismissal path for the card, because
+  // Firefox closes the popup on Escape without the page ever seeing the key
+  // (bugzilla 1443758) - Escape is never intercepted. Without a card it
+  // removes the last tag.
+  const lastCard = pendingTags.value.at(-1);
+  if (lastCard) {
+    dismissPendingTag(lastCard);
+    return;
+  }
   const last = pop.selectedPost?.tags.at(-1);
   if (last) removeTag(last);
 }
@@ -377,18 +391,6 @@ function onTagInputBackspace() {
 function onPoolInputBackspace() {
   const last = pop.selectedPost?.pools.at(-1);
   if (last) removePool(last);
-}
-
-function onTagInputEscapeIdle(e: KeyboardEvent) {
-  // Escape with the dropdown closed resolves the topmost interruption layer:
-  // a pending creation card is skipped (plain add, popup stays open). Without
-  // one the event is left alone so the native popup-close happens.
-  const last = pendingTags.value.at(-1);
-  if (last) {
-    e.preventDefault();
-    e.stopPropagation();
-    skipStagedTag(last);
-  }
 }
 
 function toggleKeepTags() {
@@ -650,7 +652,6 @@ useDark();
             :staged-tags="stagedTagInfos"
             @add-tag="addTagWithStaging"
             @backspace-on-empty="onTagInputBackspace"
-            @escape-idle="onTagInputEscapeIdle"
           />
         </div>
 

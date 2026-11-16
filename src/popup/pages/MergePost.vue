@@ -320,8 +320,12 @@ const shortcuts = [
   { keys: "i", label: "Toggle which image to keep" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
-  { keys: "Backspace", label: "On an empty input: remove the last tag / implication" },
-  { keys: "Esc", label: "Close dropdown, skip new-tag card, close popup" },
+  {
+    keys: "Backspace",
+    label:
+      "Empty tag input: dismiss the pending new-tag card (without adding); otherwise remove the last tag / implication",
+  },
+  { keys: "Esc", label: "Dismiss the popup" },
   { keys: "?", label: "Toggle this cheat sheet" },
 ];
 
@@ -335,22 +339,18 @@ function toggleImageToKeep() {
 }
 
 function removeLastTagToAdd() {
-  // Chip-input convention: Backspace on the empty input removes the last
-  // queued tag. Existing tags of the post are never touched - removing those
-  // is a deliberate mouse action.
+  // Backspace on the empty input: with a pending creation card it cancels
+  // the newest one - dismissed WITHOUT adding the tag (Enter is the confirm
+  // path, see PopupMain); otherwise it removes the last queued tag. Existing
+  // tags of the post are never touched - removing those is a deliberate
+  // mouse action.
+  const lastCard = pendingTags.value.at(-1);
+  if (lastCard) {
+    dismissPendingTag(lastCard);
+    return;
+  }
   const last = tagsToAdd.at(-1);
   if (last) removeTagToAdd(last);
-}
-
-function onTagInputEscapeIdle(e: KeyboardEvent) {
-  // Escape with the dropdown closed: skip the newest pending creation card
-  // (plain add, popup stays open); without one the popup closes natively.
-  const last = pendingTags.value.at(-1);
-  if (last) {
-    e.preventDefault();
-    e.stopPropagation();
-    skipStagedTag(last);
-  }
 }
 
 useKeyboardShortcuts(
@@ -485,7 +485,6 @@ useKeyboardShortcuts(
             :staged-tags="stagedTagInfos"
             @add-tag="addTagWithStaging"
             @backspace-on-empty="removeLastTagToAdd"
-            @escape-idle="onTagInputEscapeIdle"
           />
         </div>
 

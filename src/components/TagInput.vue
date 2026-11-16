@@ -14,7 +14,7 @@ const props = defineProps({
   /** Staged (creation-card) entries merged ahead of the server results. */
   stagedTags: { type: Array as PropType<StagedTagInfo[]>, default: () => [] },
 });
-const emit = defineEmits(["addTag", "backspaceOnEmpty", "escapeIdle"]);
+const emit = defineEmits(["addTag", "backspaceOnEmpty"]);
 
 // Forwarded focus: PopupMain drops the caret into the tag field on popup open.
 const autocompleteRef = ref<{ focus: () => void } | null>(null);
@@ -71,7 +71,6 @@ async function autocompletePopulator(input: string, ct: CancelToken) {
     @add-from-current-input="addTagFromCurrentInput"
     @autocomplete-populator="autocompletePopulator"
     @backspace-on-empty="emit('backspaceOnEmpty')"
-    @escape-idle="emit('escapeIdle', $event)"
     v-slot="slotProps"
   >
     <span :class="getTagClasses(slotProps.item)">

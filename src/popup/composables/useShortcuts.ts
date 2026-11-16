@@ -43,14 +43,9 @@ export function useKeyboardShortcuts(actions: ShortcutActions, cheatsheetOpen: R
       return;
     }
 
-    // The cheat sheet is the topmost layer: Escape closes it from anywhere,
-    // before the dropdown/card/popup layers get a chance.
-    if (cheatsheetOpen.value && e.key == "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      cheatsheetOpen.value = false;
-      return;
-    }
+    // Escape is never intercepted: it natively dismisses the popup on both
+    // engines (Firefox does not deliver Escape to extension popups at all,
+    // bugzilla 1443758). No Escape handling lives here on purpose.
 
     // "?" toggles the cheat sheet - but only outside text fields, where it
     // must keep typing a question mark.
