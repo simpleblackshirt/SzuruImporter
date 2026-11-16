@@ -274,17 +274,21 @@ function dismissPendingTag(tag: TagDetails) {
   }
 }
 
-function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: string[] }) {
+function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: TagDetails[] }) {
   dismissPendingTag(tag);
   if (!pop.selectedPost) return;
 
   // Staging only: optimistic local state, zero server writes. The tag is
   // created through the API when the post is saved.
   tag.category = choice.category;
-  tag.staged = { implications: choice.implications };
-  // No client-side implication expansion for staged tags: their implications
-  // materialize server-side at save time.
-  pushTagWithImplications(pop.selectedPost.tags, tag, false);
+  tag.staged = { implications: choice.implications.map((x) => x.name) };
+
+  // The backend would apply the implications at save time anyway - adding
+  // the targets as plain tags surfaces them as editable chips and puts them
+  // into the payload. Each target carries its own category/staged flag; its
+  // own implications expand per the global setting, like a manual add.
+  tag.implications = choice.implications;
+  pushTagWithImplications(pop.selectedPost.tags, tag, cfg.value.addTagImplications);
 }
 
 function skipStagedTag(tag: TagDetails) {

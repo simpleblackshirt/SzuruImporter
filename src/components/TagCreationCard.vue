@@ -174,9 +174,13 @@ async function confirm() {
   validationError.value = validateStaging(props.tagName, names, props.stagedTags, knownNames.value);
   if (validationError.value) return;
 
+  // The full TagDetails (not just names) so the pages can add the targets as
+  // real tags: they carry their category for colored chips, their staged flag
+  // when the target is itself staged, and their own implications for the
+  // pages' expansion. addImplication keeps this list unique by name.
   emit("confirm", {
     category: selectedCategory.value,
-    implications: names,
+    implications: [...implications.value],
   });
 }
 

@@ -136,16 +136,21 @@ function dismissPendingTag(tag: TagDetails) {
   }
 }
 
-function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: string[] }) {
+function confirmStagedTag(tag: TagDetails, choice: { category: string; implications: TagDetails[] }) {
   dismissPendingTag(tag);
 
   // Staging only: created through the API when the merge is saved.
   tag.category = choice.category;
-  tag.staged = { implications: choice.implications };
+  tag.staged = { implications: choice.implications.map((x) => x.name) };
+
+  // Same as PopupMain: the implication targets become real queued tags (the
+  // backend would apply them at save anyway), each carrying its own
+  // category/staged flag; expansion follows the global setting.
+  tag.implications = choice.implications;
   pushTagWithImplications(
     tagsToAdd,
     tag,
-    false,
+    cfg.value.addTagImplications,
     (candidate) =>
       tagsToAdd.some((x) => x.name == candidate.name) ||
       post.value.tags.some((x) => x.names.indexOf(candidate.name) != -1),
