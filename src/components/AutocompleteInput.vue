@@ -74,8 +74,13 @@ function onAddItemKeyDown(e: KeyboardEvent) {
   }
 
   // Chip-input convention: Backspace on an empty field removes the last item
-  // (parents wire this to tag/pool/implication removal).
+  // (parents wire this to tag/pool/implication removal - or to cancelling a
+  // pending creation card). Auto-repeats from a held key are ignored: the
+  // common "hold Backspace to erase typed text" flow must never cascade into
+  // stripping tags once the input empties - every event arriving after the
+  // last character is a repeat, and a fresh press always has repeat=false.
   if (e.code == "Backspace" && inputText.value.length == 0) {
+    if (e.repeat) return;
     e.preventDefault();
     emit("backspaceOnEmpty");
   }
