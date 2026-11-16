@@ -38,7 +38,7 @@ defineEmits(["update:modelValue"]);
         </tbody>
       </table>
 
-      <div class="cheatsheet-hint">Single-key shortcuts never fire while typing in a text field.</div>
+      <div class="cheatsheet-hint">Single-key shortcuts never fire while typing - use their Ctrl variants there.</div>
     </div>
   </div>
 </template>

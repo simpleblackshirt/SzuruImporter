@@ -338,10 +338,10 @@ const cheatsheetOpen = ref(false);
 const shortcuts = [
   { keys: "Ctrl+Enter", label: "Import the selected post" },
   { keys: "Ctrl+Shift+Enter", label: "Import and advance to the next post" },
-  { keys: "s", label: "Cycle safety" },
-  { keys: ", / .", label: "Previous / next post" },
-  { keys: "k", label: "Toggle keep tags between posts" },
-  { keys: "m", label: "Merge into the exact/similar post (when found)" },
+  { keys: "s · Ctrl+S", label: "Cycle safety" },
+  { keys: ", / . · Ctrl+, / Ctrl+.", label: "Previous / next post" },
+  { keys: "k · Ctrl+K", label: "Toggle keep tags between posts" },
+  { keys: "m · Ctrl+M", label: "Merge into the exact/similar post (when found)" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
   {
@@ -350,7 +350,7 @@ const shortcuts = [
       "Empty tag input: dismiss the pending new-tag card (without adding); otherwise remove the last tag / pool / implication",
   },
   { keys: "Esc", label: "Dismiss the popup" },
-  { keys: "?", label: "Toggle this cheat sheet" },
+  { keys: "? · Ctrl+H", label: "Toggle this cheat sheet" },
 ];
 
 // The merge route is entered by the Merge links next to the exact/similar

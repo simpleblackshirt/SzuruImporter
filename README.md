@@ -25,20 +25,22 @@ The popup is built to be driven entirely from the keyboard. `Ctrl+Shift+U` (a br
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `Ctrl+Enter`                          | Import the selected post (merge page: merge changes)                                                                   |
 | `Ctrl+Shift+Enter`                    | Import and advance to the next grabbed post; closes the popup after the last one                                       |
-| `s`                                   | Cycle safety safe → sketchy → unsafe                                                                                   |
-| `,` / `.`                             | Previous / next grabbed post                                                                                           |
-| `k`                                   | Toggle "keep tags between posts"                                                                                       |
-| `m`                                   | Merge into the exact/similar post when one was found                                                                   |
-| `i`                                   | Merge page: toggle which image to keep                                                                                 |
+| `s · Ctrl+S`                          | Cycle safety safe → sketchy → unsafe                                                                                   |
+| `,` / `.` · `Ctrl+,` / `Ctrl+.`       | Previous / next grabbed post                                                                                           |
+| `k · Ctrl+K`                          | Toggle "keep tags between posts"                                                                                       |
+| `m · Ctrl+M`                          | Merge into the exact/similar post when one was found                                                                   |
+| `i · Ctrl+I`                          | Merge page: toggle which image to keep                                                                                 |
 | `/`                                   | Focus the tag input                                                                                                    |
 | `↑` / `↓`                             | Move in the autocomplete dropdown                                                                                      |
 | `PageUp` / `PageDown`, `Home` / `End` | Jump 5 rows / to the ends of the dropdown                                                                              |
 | `Tab`                                 | Accept the highlighted suggestion and keep typing                                                                      |
 | `Backspace`                           | Empty tag input: dismiss the pending new-tag card (without adding); otherwise remove the last tag / pool / implication |
 | `Esc`                                 | Dismiss the popup (never intercepted by the extension)                                                                 |
-| `?`                                   | Toggle the shortcut cheat sheet                                                                                        |
+| `? · Ctrl+H`                          | Toggle the shortcut cheat sheet                                                                                        |
 
 Single-key shortcuts never fire while you are typing in a text field. The merge page shares `s`, `i`, `/`, `Tab`, `Backspace` and the `Esc` behavior; it has no post switching or upload-and-advance. Note: Escape is deliberately never intercepted by the extension - it always dismisses the popup on both engines (Firefox does not even deliver the key to extension popups, see [bugzilla 1443758](https://bugzilla.mozilla.org/show_bug.cgi?id=1443758)). Dismissing a pending new-tag card therefore lives on `Backspace`.
+
+All single-key actions also have `Ctrl` variants (`Ctrl+S`, `Ctrl+,` / `Ctrl+.`, `Ctrl+K`, `Ctrl+M`, `Ctrl+I`, `Ctrl+H`) that fire while a text field has focus, so acting on a post never requires leaving the tag input.
 
 ## Supported sites
 

@@ -6,23 +6,25 @@ import { isTextEntryTarget, shouldIgnoreShortcut } from "~/utils/keyboard";
  * upload/merge shortcut, the plain single-key shortcuts, and the cheat-sheet
  * layer. Page-specific actions are optional, so each page binds only what it
  * has. Plain keys never fire while typing: the isTextEntryTarget guard keeps
- * every text field's keystrokes untouched.
+ * every text field's keystrokes untouched. The Ctrl-modified variants of the
+ * single-key actions do fire while typing, so acting on the post never
+ * requires leaving a text field.
  */
 export interface ShortcutActions {
   /** Ctrl+Enter - upload the selected post / merge changes. */
   primary(): void;
   /** Ctrl+Shift+Enter - upload and advance to the next grabbed post (popup only). */
   primaryAdvance?: () => void;
-  /** s - cycle the safety rating. */
+  /** s / Ctrl+S - cycle the safety rating. */
   cycleSafety(): void;
-  /** , / . - previous / next grabbed post (popup only). */
+  /** , / . / Ctrl+, / Ctrl+. - previous / next grabbed post (popup only). */
   previousPost?: () => void;
   nextPost?: () => void;
-  /** k - toggle "keep tags between posts" (popup only). */
+  /** k / Ctrl+K - toggle "keep tags between posts" (popup only). */
   toggleKeepTags?: () => void;
-  /** m - enter merge mode for the exact/similar post (popup only). */
+  /** m / Ctrl+M - enter merge mode for the exact/similar post (popup only). */
   merge?: () => void;
-  /** i - toggle which image to keep on the merge page (merge only). */
+  /** i / Ctrl+I - toggle which image to keep on the merge page (merge only). */
   toggleImage?: () => void;
   /** / - drop the caret into the tag input. */
   focusTagInput(): void;
@@ -47,6 +49,14 @@ export function useKeyboardShortcuts(actions: ShortcutActions, cheatsheetOpen: R
     // engines (Firefox does not deliver Escape to extension popups at all,
     // bugzilla 1443758). No Escape handling lives here on purpose.
 
+    // Ctrl+H toggles the cheat sheet from anywhere - including text fields
+    // and while the sheet itself is open (it doubles as the close key).
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.isComposing && e.key.toLowerCase() == "h") {
+      e.preventDefault();
+      cheatsheetOpen.value = !cheatsheetOpen.value;
+      return;
+    }
+
     // "?" toggles the cheat sheet - but only outside text fields, where it
     // must keep typing a question mark.
     if (e.key == "?" && !isTextEntryTarget(e)) {
@@ -55,8 +65,30 @@ export function useKeyboardShortcuts(actions: ShortcutActions, cheatsheetOpen: R
       return;
     }
 
-    // While the sheet is open it is modal: no further plain-key handling.
+    // While the sheet is open it is modal: no further shortcut handling.
     if (cheatsheetOpen.value) return;
+
+    // Ctrl-modified variants of the single-key actions work while a text
+    // field has focus, so acting on a post never requires leaving the tag
+    // input. Plain-key variants below stay for non-text focus. Only combos
+    // the page actually bound are consumed - everything else (Ctrl+C,
+    // Ctrl+V, select-all, ...) keeps its native behavior.
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.isComposing) {
+      const ctrlActions: Record<string, (() => void) | undefined> = {
+        s: () => actions.cycleSafety(),
+        ",": actions.previousPost,
+        ".": actions.nextPost,
+        k: actions.toggleKeepTags,
+        m: actions.merge,
+        i: actions.toggleImage,
+      };
+      const ctrlAction = ctrlActions[e.key.toLowerCase()];
+      if (ctrlAction) {
+        e.preventDefault();
+        ctrlAction();
+        return;
+      }
+    }
 
     if (shouldIgnoreShortcut(e) || isTextEntryTarget(e)) return;
 

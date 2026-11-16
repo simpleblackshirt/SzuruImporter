@@ -316,8 +316,8 @@ const cheatsheetOpen = ref(false);
 
 const shortcuts = [
   { keys: "Ctrl+Enter", label: "Merge changes" },
-  { keys: "s", label: "Cycle safety" },
-  { keys: "i", label: "Toggle which image to keep" },
+  { keys: "s · Ctrl+S", label: "Cycle safety" },
+  { keys: "i · Ctrl+I", label: "Toggle which image to keep" },
   { keys: "/", label: "Focus the tag input" },
   { keys: "Tab", label: "Accept the highlighted suggestion" },
   {
@@ -326,7 +326,7 @@ const shortcuts = [
       "Empty tag input: dismiss the pending new-tag card (without adding); otherwise remove the last tag / implication",
   },
   { keys: "Esc", label: "Dismiss the popup" },
-  { keys: "?", label: "Toggle this cheat sheet" },
+  { keys: "? · Ctrl+H", label: "Toggle this cheat sheet" },
 ];
 
 // Dropped into by the / shortcut - the "Tags to add" input.
