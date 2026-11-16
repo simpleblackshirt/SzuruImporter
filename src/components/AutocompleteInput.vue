@@ -102,6 +102,13 @@ watch(inputText, (value) => {
   // still finish executing it, but the client at least stops waiting on it.
   cancelSource.value?.cancel();
 
+  // Editing the text invalidates the current highlight: the highlighted item
+  // matched the previous query, so Enter must fall back to the raw typed
+  // text until the user navigates the dropdown again. Without this, arrowing
+  // to a suggestion (e.g. a deprioritized artist tag at the end of the list)
+  // and then fixing a typo would leave Enter bound to the stale pick.
+  autocompleteIndex.value = -1;
+
   // Hide autocomplete when the input is empty, and don't do anything else.
   if (value.length == 0) {
     hideAutocomplete();
