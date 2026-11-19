@@ -46,11 +46,13 @@ export function candidateTagNames(scrapedTags: ScrapedTagInfo[], postTags: Micro
 /**
  * Returns the description with the profile url appended on its own line, or
  * undefined when no change is needed: a description that already has the url
- * on any (trimmed) line is left alone.
+ * on any (trimmed) line is left alone — trailing slashes don't count as a
+ * difference, other tools write the bare-host lofter blog url with one.
  */
 export function withProfileUrl(description: string | undefined, profileUrl: string): string | undefined {
+  const norm = (u: string) => u.replace(/\/+$/, "");
   const existing = description ?? "";
-  if (existing.split(/\r?\n/).some((line) => line.trim() == profileUrl)) {
+  if (existing.split(/\r?\n/).some((line) => norm(line.trim()) == norm(profileUrl))) {
     return undefined;
   }
   const base = existing.trim();

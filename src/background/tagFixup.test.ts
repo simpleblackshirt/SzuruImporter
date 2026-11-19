@@ -82,6 +82,16 @@ describe("withProfileUrl", () => {
       "see https://x.com/a for more\nhttps://x.com/a",
     );
   });
+
+  it("keeps a description whose url line only differs by trailing slashes", () => {
+    // e.g. lofter blog urls written with a slash by szuru-ingest
+    expect(withProfileUrl("The artist.\nhttps://x.com/a/", "https://x.com/a")).toBeUndefined();
+    expect(withProfileUrl("The artist.\nhttps://x.com/a", "https://x.com/a/")).toBeUndefined();
+    // only whole-line matches count — this is not a trailing-slash check
+    expect(withProfileUrl("see https://x.com/a/ for more", "https://x.com/a")).toBe(
+      "see https://x.com/a/ for more\nhttps://x.com/a",
+    );
+  });
 });
 
 describe("computeTagUpdates", () => {
