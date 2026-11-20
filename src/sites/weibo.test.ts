@@ -5,25 +5,46 @@ describe("weibo site adapter", () => {
   it("should declare the page hosts of the neo-scraper Weibo engine", () => {
     expect(weibo.hosts).toEqual(["weibo.com", "m.weibo.cn", "weibo.cn", "weibo.com.cn"]);
   });
+});
 
-  it("should carry the sinaimg referer rule scoped to extension-initiated requests", () => {
-    // requestDomains feeds the Chromium DNR session rules (subdomains included);
-    // urlFilter remains the Firefox blocking-webRequest filter.
-    expect(weibo.refererRule).toEqual({
-      urlFilter: ["*://*.sinaimg.cn/*"],
-      urlPattern: expect.any(RegExp),
-      requestDomains: ["sinaimg.cn"],
-      referer: "https://weibo.com/",
-      extensionInitiatedOnly: true,
-    });
-    expect(weibo.refererRule?.urlPattern.test("https://wx4.sinaimg.cn/large/pic.jpg")).toBe(true);
-    expect(weibo.refererRule?.urlPattern.test("https://szuru.example.org/api/uploads")).toBe(false);
+describe("weibo referer rule", () => {
+  const rule = weibo.refererRule!;
+
+  it("matches the sinaimg image CDN (existing behavior)", () => {
+    expect(rule.urlPattern.test("https://wx4.sinaimg.cn/large/pic1.jpg")).toBe(true);
+    expect(rule.requestDomains).toContain("sinaimg.cn");
+    expect(rule.urlFilter).toContain("*://*.sinaimg.cn/*");
   });
 
-  it("should carry the sinaimg download fallback resolver", () => {
-    expect(weibo.downloadFallback?.resolve("https://wx4.sinaimg.cn/large/pic.jpg")).toBe(
-      "https://wx4.sinaimg.cn/mw2000/pic.jpg",
-    );
-    expect(weibo.downloadFallback?.urlPattern.test("https://cdn.example.com/large/pic.jpg")).toBe(false);
+  it("matches the video CDN including its per-region subdomains", () => {
+    expect(rule.urlPattern.test("https://f.video.weibocdn.com/o0/abc.mp4?label=mp4_720p&Expires=1&ssig=x")).toBe(true);
+    expect(rule.urlPattern.test("https://video.weibocdn.com/o0/abc.mp4")).toBe(true);
+    expect(rule.requestDomains).toContain("video.weibocdn.com");
+    expect(rule.urlFilter).toContain("*://*.video.weibocdn.com/*");
+    expect(rule.urlFilter).toContain("*://video.weibocdn.com/*");
+  });
+
+  it("does not match unrelated hosts", () => {
+    expect(rule.urlPattern.test("https://example.com/large/pic.jpg")).toBe(false);
+    expect(rule.urlPattern.test("https://weibo.com/somepage")).toBe(false);
+    expect(rule.urlPattern.test("https://evil.weibocdn.com.evil.example/abc.mp4")).toBe(false);
+  });
+
+  it("attaches the weibo referer only for extension-initiated requests", () => {
+    expect(rule.referer).toBe("https://weibo.com/");
+    expect(rule.extensionInitiatedOnly).toBe(true);
+  });
+});
+
+describe("weibo download fallback", () => {
+  const fallback = weibo.downloadFallback!;
+
+  it("stays image-only: the mw2000 downgrade does not apply to video urls", () => {
+    expect(fallback.urlPattern.test("https://wx4.sinaimg.cn/large/pic1.jpg")).toBe(true);
+    expect(fallback.urlPattern.test("https://f.video.weibocdn.com/o0/abc.mp4?label=mp4_720p")).toBe(false);
+  });
+
+  it("downgrades large renditions to mw2000", () => {
+    expect(fallback.resolve("https://wx4.sinaimg.cn/large/pic1.jpg")).toBe("https://wx4.sinaimg.cn/mw2000/pic1.jpg");
   });
 });

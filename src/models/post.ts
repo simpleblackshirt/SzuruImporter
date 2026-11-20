@@ -1,5 +1,6 @@
 import { BooruTypes, ContentType, ScrapedNote, ScrapedPost, ScrapedTag, UploadMode } from "neo-scraper";
 import { MicroTag, Pool, Tag } from "~/api/models";
+import type { ResolvedContentPlan } from "~/sites";
 import type { PostUploadInfo } from "./messages";
 
 export class TagDetails {
@@ -88,6 +89,19 @@ export class ScrapedPostDetails {
   uploadMode: UploadMode;
   referrer?: string;
   resolution?: [number, number];
+  /**
+   * Display url for video posts whose contentUrl is not renderable in the
+   * popup (e.g. a bluesky HLS placeholder - the poster image is shown via
+   * <video poster> instead).
+   */
+  previewUrl?: string;
+  /**
+   * Set by the site adapters' content resolvers (see ~/sites) when the
+   * uploadable bytes must be assembled by the background inside the upload
+   * command (e.g. bluesky HLS -> mp4 transmux). Plain serializable - rides
+   * cloneDeep + runtime messaging.
+   */
+  resolvedContent?: ResolvedContentPlan;
   instanceSpecificData: MappedInstanceSpecificData = {};
 
   constructor(post: ScrapedPost) {

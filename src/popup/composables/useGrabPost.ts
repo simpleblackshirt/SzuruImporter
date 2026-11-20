@@ -2,6 +2,7 @@ import { ScrapeResults } from "neo-scraper";
 import type { Ref } from "vue";
 import { BrowserCommand, ScrapedPostDetails } from "~/models";
 import { cfg, usePopupStore } from "~/stores";
+import { resolvePostsContent } from "./useContentResolve";
 import { materializeScrapeResults } from "./materialize";
 
 export { FALLBACK_UPLOAD_AS_URL_NAME } from "./materialize";
@@ -50,6 +51,10 @@ export function useGrabPost(deps: GrabPostDeps) {
     if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
       loadTagCounts();
     }
+
+    // Swap video placeholders for their real content (twitter mp4 variants,
+    // bluesky video classification) before the info probe reads them.
+    await resolvePostsContent(pop.posts);
 
     if (cfg.value.fetchPostInfo) {
       await fetchPostsInfo();

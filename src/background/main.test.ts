@@ -109,7 +109,7 @@ describe("Chromium referer mechanism (DNR session rules)", () => {
         },
         condition: {
           tabIds: [-1],
-          requestDomains: ["sinaimg.cn"],
+          requestDomains: ["sinaimg.cn", "video.weibocdn.com"],
           resourceTypes: ["xmlhttprequest", "image", "other"],
         },
       },
@@ -148,7 +148,9 @@ describe("gecko referer mechanism (blocking webRequest, Firefox-gated)", () => {
   const getExtraInfoSpec = () => testCtx.addOnBeforeSendHeadersListener.mock.calls[0][2];
 
   it("auto-revives the blocking listener from the manifest permissions alone (W2 gate assumption)", () => {
-    expect(getFilter()).toEqual({ urls: ["*://*.i.pximg.net/*", "*://*.sinaimg.cn/*"] });
+    expect(getFilter()).toEqual({
+      urls: ["*://*.i.pximg.net/*", "*://*.sinaimg.cn/*", "*://*.video.weibocdn.com/*", "*://video.weibocdn.com/*"],
+    });
     expect(getExtraInfoSpec()).toEqual(["blocking", "requestHeaders"]);
     // The gecko variant must not also register DNR session rules.
     expect(testCtx.updateSessionRules).not.toHaveBeenCalled();

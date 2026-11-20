@@ -1,3 +1,4 @@
+import type { BooruTypes, ContentType, UploadMode } from "neo-scraper";
 import type { SourceUrlFamily } from "./identity";
 import animePictures from "./anime-pictures";
 import bluesky from "./bluesky";
@@ -27,6 +28,61 @@ import zerochan from "./zerochan";
  * hotlink-protected CDN workarounds, source url families) that would
  * otherwise be scattered over api, background and utils.
  */
+/**
+ * A content resolution plan for a grabbed post: the scraped contentUrl is a
+ * placeholder that needs background byte-assembly before it can be uploaded.
+ * Plain serializable - rides cloneDeep + runtime messaging to the background,
+ * which materializes the real bytes inside the upload command.
+ */
+export type ResolvedContentPlan = {
+  /** The real content is an HLS playlist: the background downloads the best
+   * variant's segments and transmuxes them into an mp4 blob (bluesky video). */
+  kind: "hls-mp4";
+  playlistUrl: string;
+};
+
+/**
+ * What a content resolver decided for one post. Undefined = keep the scraped
+ * post as-is. Field-based (not a full replacement) so resolvers only touch
+ * what they actually know.
+ */
+export interface ResolvedContent {
+  /** Set when the background must assemble the uploadable bytes (see above). */
+  plan?: ResolvedContentPlan;
+  /**
+   * Resolution failure: the scraped post is kept as-is and the message is
+   * shown in the popup's error banner. Carries no other fields - a failed
+   * resolution never half-applies.
+   */
+  error?: string;
+  /** Replacement content url (e.g. a resolved mp4 variant url). */
+  contentUrl?: string;
+  contentType?: ContentType;
+  uploadMode?: UploadMode;
+  /** Display url for video posts whose contentUrl is not renderable in the
+   * popup (a poster image - rendered via <video poster>). */
+  previewUrl?: string;
+  resolution?: [number, number];
+  rating?: BooruTypes.SafetyRating;
+}
+
+/** The slice of a post view model resolvers may inspect (plain serializable). */
+export interface ResolvablePost {
+  id: string;
+  contentType: ContentType;
+  contentUrl: string;
+  pageUrl: string;
+  /** The post's joined source urls; the first line is the canonical source. */
+  source: string;
+}
+
+export interface ContentResolver {
+  /** Resolves a batch of posts of one adapter. Returns one entry per input
+   * post, in order; undefined keeps the post's scraped state. Individual
+   * failures resolve as undefined - one bad post must not sink the batch. */
+  resolve(posts: ResolvablePost[]): Promise<(ResolvedContent | undefined)[]>;
+}
+
 export interface SiteAdapter {
   /** Stable identifier, e.g. used as the post's instanceSpecificData key. */
   id: string;
@@ -40,6 +96,9 @@ export interface SiteAdapter {
   downloadFallback?: DownloadFallback;
   /** Source-dedup url families (see ~/utils) applying to this site's source urls. */
   sourceFamilies?: SourceUrlFamily[];
+  /** Resolves scraped content that needs API round-trips the DOM-only
+   * neo-scraper engines cannot do (twitter mp4 variants, bluesky video). */
+  resolveContent?: ContentResolver;
 }
 
 export interface RefererRule {
@@ -106,3 +165,35 @@ export function downloadFallbackForUrl(contentUrl: string): DownloadFallback["re
 export const refererRules: RefererRule[] = siteAdapters.flatMap((adapter) =>
   adapter.refererRule ? [adapter.refererRule] : [],
 );
+
+/**
+ * Runs the adapters' content resolvers over grabbed posts, grouped per site.
+ * Resolution failures are logged and leave the affected posts in their
+ * scraped state (they surface at upload time, where they belong).
+ */
+export async function resolveContentForPosts(
+  posts: ResolvablePost[],
+): Promise<Map<string, ResolvedContent | undefined>> {
+  const byAdapter = new Map<SiteAdapter, ResolvablePost[]>();
+  for (const post of posts) {
+    const adapter = adapterForUrl(post.pageUrl);
+    if (adapter?.resolveContent) {
+      const group = byAdapter.get(adapter) ?? [];
+      group.push(post);
+      byAdapter.set(adapter, group);
+    }
+  }
+
+  const resolved = new Map<string, ResolvedContent | undefined>();
+  await Promise.all(
+    [...byAdapter.entries()].map(async ([adapter, group]) => {
+      try {
+        const results = await adapter.resolveContent.resolve(group);
+        group.forEach((post, i) => resolved.set(post.id, results[i]));
+      } catch (ex) {
+        console.error(`Content resolution failed for ${adapter.id}:`, ex);
+      }
+    }),
+  );
+  return resolved;
+}

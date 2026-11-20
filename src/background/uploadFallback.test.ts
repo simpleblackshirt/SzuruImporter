@@ -11,6 +11,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const testCtx = vi.hoisted(() => {
   const createPost = vi.fn();
   const uploadTempFileFromContent = vi.fn();
+  const uploadTempFileFromBlob = vi.fn();
+  const materializeResolvedContent = vi.fn();
   // The upload flow's tag-existence pre-check (created-tags counting); an
   // empty result = no tag on the instance = all post tags count as new.
   const getTags = vi.fn().mockResolvedValue({ results: [] });
@@ -39,7 +41,7 @@ const testCtx = vi.hoisted(() => {
     storage: { session: { get: vi.fn().mockResolvedValue({}), set: vi.fn().mockResolvedValue(undefined) } },
   };
 
-  return { createPost, uploadTempFileFromContent, getTags, browserStub };
+  return { createPost, uploadTempFileFromContent, uploadTempFileFromBlob, materializeResolvedContent, getTags, browserStub };
 });
 
 vi.mock("~/api", () => ({
@@ -47,9 +49,14 @@ vi.mock("~/api", () => ({
     createFromConfig: () => ({
       createPost: testCtx.createPost,
       uploadTempFileFromContent: testCtx.uploadTempFileFromContent,
+      uploadTempFileFromBlob: testCtx.uploadTempFileFromBlob,
       getTags: testCtx.getTags,
     }),
   },
+}));
+
+vi.mock("./resolvedContent", () => ({
+  materializeResolvedContent: testCtx.materializeResolvedContent,
 }));
 
 // unplugin-auto-import turns the global `browser` into an import of webextension-polyfill,
@@ -187,5 +194,56 @@ describe("url-mode server-download fallback", () => {
     const lastPush = pushInfoCalls().at(-1);
     expect(lastPush.data.info.state).toBe("error");
     expect(lastPush.data.info.error).toContain("failed with status 403");
+  });
+});
+
+describe("resolved-content posts (background materialization)", () => {
+  it("materializes the content plan into a token when the popup has none", async () => {
+    const handler = await initMain();
+    testCtx.materializeResolvedContent.mockResolvedValue("hls-token");
+    testCtx.createPost.mockResolvedValue({ id: 42, tags: [] });
+
+    await handler(uploadCmd(makePost({ resolvedContent: { kind: "hls-mp4", playlistUrl: "https://video.bsky.app/watch/x/playlist.m3u8" } })));
+
+    // The plan was materialized once and its token used for the create call.
+    expect(testCtx.materializeResolvedContent).toHaveBeenCalledTimes(1);
+    expect(testCtx.materializeResolvedContent.mock.calls[0][1].resolvedContent.kind).toBe("hls-mp4");
+    expect(testCtx.createPost).toHaveBeenCalledTimes(1);
+    expect(testCtx.createPost.mock.calls[0][1]).toBe("hls-token");
+    // The blob never crosses the message boundary: no popup content fetch.
+    expect(testCtx.uploadTempFileFromContent).not.toHaveBeenCalled();
+
+    const lastPush = pushInfoCalls().at(-1);
+    expect(lastPush.data.info.state).toBe("uploaded");
+    expect(lastPush.data.info.instancePostId).toBe(42);
+  });
+
+  it("prefers an existing popup-provided content token over re-materializing", async () => {
+    const handler = await initMain();
+    testCtx.createPost.mockResolvedValue({ id: 43, tags: [] });
+
+    await handler(
+      uploadCmd(
+        makePost({
+          resolvedContent: { kind: "hls-mp4", playlistUrl: "https://video.bsky.app/watch/x/playlist.m3u8" },
+          instanceSpecificData: { "site-1": { contentToken: "already-uploaded" } },
+        }),
+      ),
+    );
+
+    expect(testCtx.materializeResolvedContent).not.toHaveBeenCalled();
+    expect(testCtx.createPost.mock.calls[0][1]).toBe("already-uploaded");
+  });
+
+  it("reports materialization failures as upload errors", async () => {
+    const handler = await initMain();
+    testCtx.materializeResolvedContent.mockRejectedValue(new Error("HLS media playlist contains no segments."));
+
+    await handler(uploadCmd(makePost({ resolvedContent: { kind: "hls-mp4", playlistUrl: "https://video.bsky.app/watch/x/playlist.m3u8" } })));
+
+    expect(testCtx.createPost).not.toHaveBeenCalled();
+    const lastPush = pushInfoCalls().at(-1);
+    expect(lastPush.data.info.state).toBe("error");
+    expect(lastPush.data.info.error).toContain("no segments");
   });
 });

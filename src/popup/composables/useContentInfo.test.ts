@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ScrapedPostDetails } from "~/models";
-import { updatePostWithRemoteInfo } from "./useContentInfo";
+import { updatePostWithRemoteInfo, useContentInfo } from "./useContentInfo";
 
 function makePost(overrides: Partial<ScrapedPostDetails> = {}): ScrapedPostDetails {
   return {
@@ -77,5 +77,24 @@ describe("updatePostWithRemoteInfo (HEAD probing)", () => {
     const ok = await updatePostWithRemoteInfo(post, post.contentUrl);
 
     expect(ok).toBe(false);
+  });
+});
+
+describe("fetchPostsInfo", () => {
+  it("skips resolved-content posts (their placeholder/poster urls probe wrong)", async () => {
+    const fetchMock = vi.fn(async () => headResponse({ "Content-Type": "image/jpeg" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const posts = [
+      makePost(),
+      makePost({
+        resolvedContent: { kind: "hls-mp4", playlistUrl: "https://video.bsky.app/watch/x/playlist.m3u8" },
+      }),
+    ] as ScrapedPostDetails[];
+
+    await useContentInfo(posts).fetchPostsInfo();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe(posts[0].contentUrl);
   });
 });

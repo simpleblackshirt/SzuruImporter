@@ -45,6 +45,11 @@ export async function updatePostWithRemoteInfo(post: ScrapedPostDetails, content
 export function useContentInfo(posts: ScrapedPostDetails[]) {
   async function fetchPostsInfo() {
     for (const post of posts) {
+      // Resolved-content posts skip the probe: their contentUrl is a
+      // placeholder or a poster image, so size/type would be wrong anyway.
+      if (post.resolvedContent) {
+        continue;
+      }
       if (!post.contentSize || post.extraContentUrl) {
         let ok = false;
         if (post.extraContentUrl) {

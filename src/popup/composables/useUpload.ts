@@ -42,7 +42,9 @@ export function useUpload(deps: UploadDeps) {
       const post: ScrapedPostDetails = cloneDeep(pop.selectedPost)!;
 
       // uploadMode "content" requires a content token to work. So ensure it is set.
-      if (post.uploadMode === "content") {
+      // Posts with a resolution plan skip this: the background materializes
+      // their content (HLS -> mp4 blob) inside the upload command itself.
+      if (post.uploadMode === "content" && !post.resolvedContent) {
         await ensurePostHasContentToken(szuru.value!, post, cfg);
       }
 

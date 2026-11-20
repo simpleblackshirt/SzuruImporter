@@ -14,6 +14,7 @@ import SzurubooruApi from "~/api";
 import { candidateTagNames, computeTagUpdates } from "./tagFixup";
 import type { ScrapedTagInfo } from "./tagFixup";
 import { countNewTagNames, createStagedTags, fetchExistingTagNames } from "./stagedTagCreation";
+import { materializeResolvedContent } from "./resolvedContent";
 import { registerDnrRefererRules } from "~/webRequest/dnrReferer";
 import { hasWebRequestBlocking, isExtensionInitiated, refererExtraInfoSpec } from "~/webRequest/referer";
 import "./contextMenu";
@@ -130,7 +131,15 @@ async function uploadPost(data: PostUploadCommandData) {
 
     const contentToken = data.post.instanceSpecificData[data.selectedSite.id]?.contentToken;
 
-    if (!contentToken) {
+    // Resolved-content posts (e.g. bluesky video placeholders) get their
+    // uploadable bytes assembled here - HLS download + mp4 transmux + temp
+    // file upload - instead of the popup's content-token flow (which the
+    // popup deliberately skips for them).
+    const effectiveToken = contentToken ?? (data.post.resolvedContent
+      ? await materializeResolvedContent(szuru, data.post)
+      : undefined);
+
+    if (!effectiveToken) {
       // TODO: If the scraped page url is the source then we need to do the uploadTempFileFromContent here!
       console.log("contentToken is undefined. This could be a problem for some sources!");
     }
@@ -168,7 +177,7 @@ async function uploadPost(data: PostUploadCommandData) {
       pushInfo();
     }
 
-    const createdPost = await createPostWithFallback(szuru, data, contentToken);
+    const createdPost = await createPostWithFallback(szuru, data, effectiveToken);
 
     info.state = "uploaded";
     info.instancePostId = createdPost.id;

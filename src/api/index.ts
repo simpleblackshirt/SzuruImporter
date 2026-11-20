@@ -175,7 +175,10 @@ export default class SzurubooruApi {
 
   async uploadTempFileFromContent(contentUrl: string): Promise<TemporaryFileUploadResult> {
     const content = await fetchContentWithFallback(contentUrl);
+    return this.uploadTempFileFromBlob(content);
+  }
 
+  async uploadTempFileFromBlob(content: Blob): Promise<TemporaryFileUploadResult> {
     const fullUrl = this.apiUrl + "uploads";
 
     const formData = new FormData();

@@ -68,7 +68,10 @@ describe("site registry", () => {
 
   it("should expose the sinaimg and pximg referer rules in registry order", () => {
     expect(refererRules).toEqual([pixiv.refererRule, weibo.refererRule]);
-    expect(refererRules.map((x) => x.urlFilter)).toEqual([["*://*.i.pximg.net/*"], ["*://*.sinaimg.cn/*"]]);
+    expect(refererRules.map((x) => x.urlFilter)).toEqual([
+      ["*://*.i.pximg.net/*"],
+      ["*://*.sinaimg.cn/*", "*://*.video.weibocdn.com/*", "*://video.weibocdn.com/*"],
+    ]);
   });
 
   it("should scope the pximg referer rule to the pixiv cdn", () => {

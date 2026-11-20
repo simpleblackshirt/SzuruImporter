@@ -1,11 +1,13 @@
 <script setup lang="ts">
-defineProps({
+const props = defineProps({
   contentUrl: String,
   notes: {
     type: Array,
     default: () => [],
   },
   contentType: String,
+  /** Poster/preview image for video posts whose src is not renderable yet. */
+  previewUrl: String,
 });
 
 const emit = defineEmits(["onResolutionLoaded"]);
@@ -16,10 +18,9 @@ const imgEl = ref<HTMLImageElement | undefined>(undefined);
 // This works because we load the full-resolution image in the <img> element.
 // This code might stop showing correct resolutions if/when we implement a progressive image loading.
 function onloadImage() {
-  // I guess post/selectedPost could have a race condition here?
-  // Seems very unlikely though, as the load event gets cancelled as soon as we change the :src attribute.
-  // A race condition might even be impossible then.
-  if (imgEl.value) {
+  // A preview image (video post poster) must not overwrite the resolution
+  // the content resolver already derived from the actual video.
+  if (imgEl.value && !props.previewUrl) {
     emit("onResolutionLoaded", [imgEl.value.naturalWidth, imgEl.value.naturalHeight]);
   }
 }
@@ -27,8 +28,19 @@ function onloadImage() {
 
 <template>
   <div class="post-container">
-    <img v-if="contentType == 'image'" ref="imgEl" :src="contentUrl" @load="onloadImage" />
-    <video v-if="contentType == 'video'" controls>
+    <!-- Video posts with a preview url (bluesky placeholders) render the
+         poster as an image: their contentUrl is a poster still, which a
+         <video> element cannot play. -->
+    <img
+      v-if="contentType != 'video' || previewUrl"
+      ref="imgEl"
+      :src="previewUrl ?? contentUrl"
+      @load="onloadImage"
+    />
+    <!-- :key re-creates the element when the content resolver swaps the source
+         after mount: changing a <source>'s src alone never re-runs the video's
+         resource selection, so the old (failed) state would stick. -->
+    <video v-else :key="contentUrl" controls :poster="previewUrl">
       <source :src="contentUrl" />
     </video>
     <div class="post-overlay">

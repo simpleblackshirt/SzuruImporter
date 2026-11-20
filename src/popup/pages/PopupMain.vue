@@ -733,6 +733,7 @@ useDark();
         <PostContentDisplay
           :content-url="pop.selectedPost.contentUrl"
           :content-type="pop.selectedPost.contentType"
+          :preview-url="pop.selectedPost.previewUrl"
           @on-resolution-loaded="onResolutionLoaded"
         />
       </div>
