@@ -34,5 +34,10 @@ export async function resolvePostsContent(posts: ScrapedPostDetails[]) {
     if (result.rating) post.rating = result.rating;
     if (result.previewUrl) post.previewUrl = result.previewUrl;
     if (result.plan) post.resolvedContent = result.plan;
+    // Make resolved videos identifiable in the post list: their preview is a
+    // poster still, which reads as an image post otherwise.
+    if (post.contentType == "video") {
+      post.name += " (video)";
+    }
   }
 }

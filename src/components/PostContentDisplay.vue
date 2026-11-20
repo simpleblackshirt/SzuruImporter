@@ -1,12 +1,12 @@
 <script setup lang="ts">
-const props = defineProps({
+defineProps({
   contentUrl: String,
   notes: {
     type: Array,
     default: () => [],
   },
   contentType: String,
-  /** Poster/preview image for video posts whose src is not renderable yet. */
+  /** Poster/preview image for video placeholders (bluesky HLS). */
   previewUrl: String,
 });
 
@@ -18,9 +18,10 @@ const imgEl = ref<HTMLImageElement | undefined>(undefined);
 // This works because we load the full-resolution image in the <img> element.
 // This code might stop showing correct resolutions if/when we implement a progressive image loading.
 function onloadImage() {
-  // A preview image (video post poster) must not overwrite the resolution
-  // the content resolver already derived from the actual video.
-  if (imgEl.value && !props.previewUrl) {
+  // I guess post/selectedPost could have a race condition here?
+  // Seems very unlikely though, as the load event gets cancelled as soon as we change the :src attribute.
+  // A race condition might even be impossible then.
+  if (imgEl.value) {
     emit("onResolutionLoaded", [imgEl.value.naturalWidth, imgEl.value.naturalHeight]);
   }
 }
@@ -28,21 +29,13 @@ function onloadImage() {
 
 <template>
   <div class="post-container">
-    <!-- Video posts with a preview url (bluesky placeholders) render the
-         poster as an image: their contentUrl is a poster still, which a
-         <video> element cannot play. -->
-    <img
-      v-if="contentType != 'video' || previewUrl"
-      ref="imgEl"
-      :src="previewUrl ?? contentUrl"
-      @load="onloadImage"
-    />
-    <!-- :key re-creates the element when the content resolver swaps the source
-         after mount: changing a <source>'s src alone never re-runs the video's
-         resource selection, so the old (failed) state would stick. -->
-    <video v-else :key="contentUrl" controls :poster="previewUrl">
-      <source :src="contentUrl" />
+    <!-- Video placeholders (bluesky HLS) render WITHOUT a source: their bytes
+         only exist after the background assembles them at upload time. The
+         control bar marks them as videos; the poster is the preview. -->
+    <video v-if="contentType == 'video'" :key="contentUrl" controls :poster="previewUrl">
+      <source v-if="!previewUrl" :src="contentUrl" />
     </video>
+    <img v-else ref="imgEl" :src="contentUrl" @load="onloadImage" />
     <div class="post-overlay">
       <PostNotes :notes="notes" />
     </div>

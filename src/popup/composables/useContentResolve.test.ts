@@ -11,6 +11,7 @@ import { resolvePostsContent } from "./useContentResolve";
 const makePost = (overrides: Record<string, unknown> = {}): ScrapedPostDetails =>
   ({
     id: "post-1",
+    name: "[twitter] Post 1",
     contentType: "video",
     contentUrl: "blob:https://x.com/4b20164f-79d1-4da5-b72f-0be72e8e18cf",
     pageUrl: "https://x.com/ArtistOne/status/333",
@@ -54,6 +55,7 @@ describe("resolvePostsContent", () => {
     expect(post.contentUrl).toBe("https://video.twimg.com/amplify_video/1/vid/avc1/720x1280/C.mp4");
     expect(post.resolution).toEqual([720, 1280]);
     expect(post.resolvedContent).toBeUndefined();
+    expect(post.name).toBe("[twitter] Post 1 (video)");
     for (const data of Object.values(post.instanceSpecificData)) {
       expect(data.genericError).toBeUndefined();
     }
