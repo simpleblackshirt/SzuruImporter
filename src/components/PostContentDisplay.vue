@@ -54,6 +54,9 @@ function onloadImage() {
   position: absolute;
   width: 100%;
   height: 100%;
+  // Purely visual (note hover regions): without this the overlay swallows
+  // every click on the video's native controls (play/seek/volume).
+  pointer-events: none;
 }
 
 .post-container {

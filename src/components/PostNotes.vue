@@ -102,6 +102,9 @@ const hoverNoteStyle = computed(() => {
 .notes-overlay g polygon {
   fill: rgba(255, 255, 205, 0.3);
   stroke: rgba(0, 0, 0, 0.2);
+  // The preview overlay opts out of pointer events (see PostContentDisplay) -
+  // re-enable them here so note hover regions keep working.
+  pointer-events: auto;
 }
 
 .note-text {
@@ -111,6 +114,7 @@ const hoverNoteStyle = computed(() => {
   text-align: left;
   z-index: 20;
   transform: translate(-50%, -50%);
+  pointer-events: auto;
 
   > .wrapper {
     background: lemonchiffon;
