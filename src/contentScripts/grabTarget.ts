@@ -25,10 +25,12 @@ export function mediaUrlsMatch(a: string, b: string): boolean {
 }
 
 /**
- * The media url of a right-clicked target: img src, video poster, otherwise
- * undefined. Used as the re-render-proof target handle; callers must NOT
- * clear the tracked value on non-media targets, so a second right-click on a
- * site menu overlay cannot erase the url of the image clicked before it.
+ * The media url of a right-clicked target: img src, video poster, css
+ * background-image (bluesky renders video posters as styled divs before the
+ * player mounts), otherwise undefined. Used as the re-render-proof target
+ * handle; callers must NOT clear the tracked value on non-media targets, so a
+ * second right-click on a site menu overlay cannot erase the url of the image
+ * clicked before it.
  */
 export function mediaSrcFromTarget(target: EventTarget | null): string | undefined {
   if (!(target instanceof Element)) {
@@ -42,16 +44,26 @@ export function mediaSrcFromTarget(target: EventTarget | null): string | undefin
   if (target.tagName == "VIDEO") {
     return (target as HTMLVideoElement).getAttribute("poster") || undefined;
   }
+  let el: Element | null = target;
+  while (el) {
+    const style = el.getAttribute("style");
+    const url = style?.match(/url\(["']?(https?:\/\/[^"')]+)["']?\)/)?.[1];
+    if (url) {
+      return url;
+    }
+    el = el.parentElement;
+  }
   return undefined;
 }
 
 /**
  * The connected element to grab: the candidate when it is still in the
- * document, otherwise a connected image matching the tracked media url (same
- * origin + path, rendition params ignored). Only img elements are considered
- * - the engines' container resolution handles everything above the media
- * element, and other media kinds carry no stable url (blob videos) or are
- * skipped by design. undefined keeps the caller's bail behavior.
+ * document, otherwise an element matching the tracked media url (same origin
+ * + path, rendition params ignored) - an <img>, or a css background-image
+ * carrier (see mediaSrcFromTarget). Only media elements are considered - the
+ * engines' container resolution handles everything above the media element,
+ * and other media kinds carry no stable url (blob videos) or are skipped by
+ * design. undefined keeps the caller's bail behavior.
  */
 export function resolveGrabTarget(
   candidate: Element | undefined,
@@ -67,6 +79,15 @@ export function resolveGrabTarget(
   for (const img of Array.from(doc.querySelectorAll<HTMLImageElement>("img"))) {
     if (img.isConnected && img.src && mediaUrlsMatch(img.src, mediaSrc)) {
       return img;
+    }
+  }
+  for (const el of Array.from(doc.querySelectorAll("[style]"))) {
+    if (!el.isConnected) {
+      continue;
+    }
+    const url = (el.getAttribute("style") ?? "").match(/url\(["']?(https?:\/\/[^"')]+)["']?\)/)?.[1];
+    if (url && mediaUrlsMatch(url, mediaSrc)) {
+      return el;
     }
   }
   return undefined;
