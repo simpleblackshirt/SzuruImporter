@@ -5,6 +5,12 @@ import { getErrorMessage } from "./format";
 export async function ensurePostHasContentToken(selectedInstance: SzurubooruApi, post: ScrapedPostDetails, cfg: any) {
   if (!selectedInstance || !cfg.value.selectedSiteId) return;
 
+  // Resolved-content posts (e.g. bluesky video placeholders) must never cache
+  // a token here: their contentUrl is a placeholder/poster still, and a token
+  // cached from it would turn the later upload into a picture post. The real
+  // content is materialized at upload time instead (see ~/background).
+  if (post.resolvedContent) return;
+
   const instanceSpecificData = post.instanceSpecificData[cfg.value.selectedSiteId];
 
   if (!instanceSpecificData) {

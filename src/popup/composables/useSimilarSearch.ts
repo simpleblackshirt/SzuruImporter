@@ -37,9 +37,19 @@ export function useSimilarSearch(szuru: ComputedRef<SzurubooruApi | undefined>) 
     isSearchingForSimilarPosts.value++;
 
     try {
-      await ensurePostHasContentToken(selectedInstance, post, cfg);
+      let token: string;
+      if (post.resolvedContent) {
+        // Resolved-content posts (e.g. bluesky video placeholders): reverse-
+        // search their poster still with a THROWAWAY url-mode token. Caching
+        // a token for the placeholder url here would turn the later upload
+        // into a picture post.
+        token = (await selectedInstance.uploadTempFileFromUrl(post.contentUrl)).token;
+      } else {
+        await ensurePostHasContentToken(selectedInstance, post, cfg);
+        token = instanceSpecificData.contentToken!;
+      }
 
-      const res = await selectedInstance.reverseSearchToken(instanceSpecificData.contentToken!);
+      const res = await selectedInstance.reverseSearchToken(token);
 
       instanceSpecificData.reverseSearchResult = {
         exactPostId: res.exactPost?.id,
