@@ -123,10 +123,14 @@ watch(
       }
     }
 
-    // Call findSimilar if wanted.
+    // Call findSimilar if wanted. Video posts are excluded from the auto
+    // search (see useGrabPost) - it would download the entire media on mere
+    // selection for an exact-match-only check.
     if (cfg.value.autoSearchSimilar && enableAutoSearch.value) {
-      let selectedPost = pop.posts.find((x) => x.id == value);
-      if (selectedPost) findSimilar(selectedPost);
+      const selectedPost = pop.posts.find((x) => x.id == value);
+      if (selectedPost && selectedPost.contentType != "video") {
+        findSimilar(selectedPost);
+      }
     }
   },
 );
@@ -145,8 +149,9 @@ watch(
         clearStagedState(post.tags);
       }
       pendingTags.value = [];
-      // Call findSimilar if wanted.
-      if (cfg.value.autoSearchSimilar && pop.selectedPost) {
+      // Call findSimilar if wanted. Video posts are excluded from the auto
+      // search (see useGrabPost).
+      if (cfg.value.autoSearchSimilar && pop.selectedPost && pop.selectedPost.contentType != "video") {
         findSimilar(pop.selectedPost);
       }
     }

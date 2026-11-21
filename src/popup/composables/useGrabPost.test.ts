@@ -152,6 +152,35 @@ describe("pickupStashedGrab", () => {
   });
 });
 
+describe("auto reverse search", () => {
+  it("runs for image posts when autoSearchSimilar is on", async () => {
+    const { pop, pickupStashedGrab, deps } = await makeComposable();
+    cfg.value.autoSearchSimilar = true;
+    const stash = { grabbedAt: Date.now(), targetUrl: "", scrapeResults: stashedScrapeResults };
+    testCtx.browserStub.storage.local.get.mockResolvedValue({ contextGrabStash: stash });
+
+    await pickupStashedGrab();
+
+    expect(pop.posts).toHaveLength(1);
+    expect(deps.findSimilar).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips video posts (the exact-match search would download the whole media on mere selection)", async () => {
+    const { pop, pickupStashedGrab, deps } = await makeComposable();
+    cfg.value.autoSearchSimilar = true;
+    const videoScrapeResults = {
+      results: [{ engine: "twitter", description: "", posts: [{ ...scrapedPost, contentType: "video" }] }],
+    };
+    const stash = { grabbedAt: Date.now(), targetUrl: "", scrapeResults: videoScrapeResults };
+    testCtx.browserStub.storage.local.get.mockResolvedValue({ contextGrabStash: stash });
+
+    await pickupStashedGrab();
+
+    expect(pop.posts).toHaveLength(1);
+    expect(deps.findSimilar).not.toHaveBeenCalled();
+  });
+});
+
 describe("grabPost (tab grab, regression guard)", () => {
   it("still populates the popup from the active tabs when no stash exists", async () => {
     const { pop, grabPost } = await makeComposable();

@@ -62,7 +62,11 @@ export function useGrabPost(deps: GrabPostDeps) {
 
     // Delayed call to findSimilar, as fetchPostInfo might change the post's contentUrl.
     enableAutoSearch.value = true;
-    if (cfg.value.autoSearchSimilar) {
+    // Video posts skip the auto search: their reverse search is exact-match
+    // only, and it would download the entire media through the client on mere
+    // selection. The manual button and the upload-time exact-post handling
+    // remain.
+    if (cfg.value.autoSearchSimilar && pop.selectedPost.contentType != "video") {
       findSimilar(pop.selectedPost);
     }
   }
