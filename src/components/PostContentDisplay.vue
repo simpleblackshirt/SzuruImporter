@@ -145,6 +145,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  // Only the button is interactive - the overlay itself would otherwise sit
+  // above the click catcher and swallow the control bar's clicks.
+  pointer-events: none;
 }
 
 // Captures pre-load clicks for placeholder videos (see template comment).
@@ -163,6 +166,8 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   border: none;
   cursor: pointer;
+  // Re-enables the button inside the click-transparent overlay.
+  pointer-events: auto;
   background: rgba(0, 0, 0, 0.6);
   color: white;
   font-size: 0.75rem;
