@@ -54,11 +54,27 @@ async function loadAndPlayPreview() {
   try {
     previewBlobUrl.value = await loadPreviewBlob(props.playlistUrl);
     await nextTick();
+    // Inserting the <source> does not re-run the video's resource selection -
+    // an explicit load() is required for the fresh source to be picked up.
+    videoEl.value?.load();
     videoEl.value?.play()?.catch(() => undefined);
   } catch {
     previewFailed.value = true;
   } finally {
     loadingPreview.value = false;
+  }
+}
+
+/**
+ * The control bar's play button on a still-unloaded placeholder fires the
+ * play event with no resource to play - route it into the on-demand load
+ * (paused first, so the element does not sit in a fake playing state);
+ * playback starts once the transmuxed source is ready.
+ */
+function onVideoPlay() {
+  if (props.playlistUrl && !previewBlobUrl.value && !loadingPreview.value) {
+    videoEl.value?.pause();
+    void loadAndPlayPreview();
   }
 }
 
@@ -80,6 +96,7 @@ onBeforeUnmount(() => {
       :key="contentUrl"
       controls
       :poster="previewUrl"
+      @play="onVideoPlay"
       @loadedmetadata="emit('onResolutionLoaded', [videoEl.videoWidth, videoEl.videoHeight])"
     >
       <source v-if="!playlistUrl" :src="contentUrl" />
