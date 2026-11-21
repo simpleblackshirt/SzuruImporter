@@ -66,12 +66,15 @@ async function loadAndPlayPreview() {
 }
 
 /**
- * The control bar's play button on a still-unloaded placeholder fires the
- * play event with no resource to play - route it into the on-demand load
- * (paused first, so the element does not sit in a fake playing state);
- * playback starts once the transmuxed source is ready.
+ * The control bar's play button on a still-unloaded placeholder has no
+ * resource to play - source-less videos fire no play event for it at all.
+ * Clicks on the media controls (and the video surface) do compose out of the
+ * shadow DOM onto the <video> element though: route any pre-load interaction
+ * into the on-demand load (paused first, so the element does not sit in a
+ * fake playing state); playback starts once the transmuxed source is ready.
+ * The @play handler stays as a fallback for keyboards/browsers that fire it.
  */
-function onVideoPlay() {
+function ensurePreviewLoaded() {
   if (props.playlistUrl && !previewBlobUrl.value && !loadingPreview.value) {
     videoEl.value?.pause();
     void loadAndPlayPreview();
@@ -96,13 +99,23 @@ onBeforeUnmount(() => {
       :key="contentUrl"
       controls
       :poster="previewUrl"
-      @play="onVideoPlay"
+      @play="ensurePreviewLoaded"
       @loadedmetadata="emit('onResolutionLoaded', [videoEl.videoWidth, videoEl.videoHeight])"
     >
       <source v-if="!playlistUrl" :src="contentUrl" />
       <source v-if="previewBlobUrl" :src="previewBlobUrl" />
     </video>
     <img v-else ref="imgEl" :src="contentUrl" @load="onloadImage" />
+    <!-- Sits above the placeholder video and captures ALL pre-load clicks
+         (control bar included): source-less videos fire no play event for
+         their controls, and Firefox's UA-internal control bar swallows
+         clicks instead of composing them onto the element. Once loaded the
+         catcher is removed and the native controls take over. -->
+    <div
+      v-if="contentType == 'video' && playlistUrl && !previewBlobUrl"
+      class="preview-catch"
+      @click="ensurePreviewLoaded"
+    ></div>
     <div v-if="contentType == 'video' && playlistUrl && !previewBlobUrl" class="preview-overlay">
       <button class="play-button" :disabled="loadingPreview" @click="loadAndPlayPreview">
         <AppIcon v-if="!loadingPreview && !previewFailed" name="play" />
@@ -132,6 +145,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+// Captures pre-load clicks for placeholder videos (see template comment).
+.preview-catch {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
 }
 
 .play-button {
