@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type SzurubooruApi from "~/api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { materializeResolvedContent } from "./resolvedContent";
+import { segmentUrlsFromPlaylist, transmuxHlsToMp4Blob, variantPlaylistsFromMaster } from "~/utils/hls";
 import type { ScrapedPostDetails } from "~/models";
 
 /**
@@ -38,8 +39,6 @@ vi.mock("mux.js", () => ({
   },
 }));
 
-import { materializeResolvedContent, segmentUrlsFromPlaylist, transmuxHlsToMp4Blob, variantPlaylistsFromMaster } from "./resolvedContent";
-
 const masterPlaylist = `#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-STREAM-INF:PROGRAM-ID=0,BANDWIDTH=1097920,AVERAGE-BANDWIDTH=857586,CODECS="avc1.4d401e",RESOLUTION=360x576
@@ -60,8 +59,7 @@ video1.ts?session_id=s1&dur=3.800000
 #EXT-X-ENDLIST
 `;
 
-const playlistUrl =
-  "https://video.bsky.app/watch/did%3Aplc%3Axyz/bafkrei/playlist.m3u8";
+const playlistUrl = "https://video.bsky.app/watch/did%3Aplc%3Axyz/bafkrei/playlist.m3u8";
 
 function textResponse(body: string): Response {
   return {
@@ -203,7 +201,7 @@ describe("materializeResolvedContent", () => {
   });
 
   it("rejects posts without a resolution plan", async () => {
-    const szuru = { uploadTempFileFromBlob: vi.fn() } as unknown as SzurubooruApi;
+    const szuru = { uploadTempFileFromBlob: vi.fn() } as any;
     await expect(materializeResolvedContent(szuru, makePost({ resolvedContent: undefined }))).rejects.toThrow(
       "no content resolution plan",
     );

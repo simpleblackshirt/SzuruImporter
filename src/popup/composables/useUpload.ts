@@ -3,6 +3,7 @@ import type { ComputedRef } from "vue";
 import SzurubooruApi from "~/api";
 import { BrowserCommand, PostUploadCommandData, ScrapedPostDetails, SzuruSiteConfig } from "~/models";
 import { cfg, usePopupStore } from "~/stores";
+import { getCachedPreviewBlob } from "~/utils/previewBlobs";
 import { ensurePostHasContentToken } from "~/utils";
 
 interface UploadDeps {
@@ -41,10 +42,18 @@ export function useUpload(deps: UploadDeps) {
     try {
       const post: ScrapedPostDetails = cloneDeep(pop.selectedPost)!;
 
-      // uploadMode "content" requires a content token to work. So ensure it is set.
-      // Posts with a resolution plan skip this: the background materializes
-      // their content (HLS -> mp4 blob) inside the upload command itself.
-      if (post.uploadMode === "content" && !post.resolvedContent) {
+      // uploadMode "content" requires a content token to work. Posts with a
+      // resolution plan either have a preview-cached blob (uploaded from this
+      // side, so the video is not downloaded twice) or get their content
+      // materialized by the background inside the upload command itself.
+      if (post.resolvedContent?.kind == "hls-mp4") {
+        const cachedBlob = getCachedPreviewBlob(post.resolvedContent.playlistUrl);
+        if (cachedBlob) {
+          post.instanceSpecificData[cfg.value.selectedSiteId]!.contentToken = (
+            await szuru.value!.uploadTempFileFromBlob(cachedBlob)
+          ).token;
+        }
+      } else if (post.uploadMode === "content") {
         await ensurePostHasContentToken(szuru.value!, post, cfg);
       }
 

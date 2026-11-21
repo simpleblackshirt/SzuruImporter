@@ -8,6 +8,11 @@ import { computed } from "vue";
  * Path data is Font Awesome Free (CC BY 4.0) - see README for attribution.
  */
 const icons = {
+  play: {
+    w: 24,
+    h: 24,
+    d: "M8 5v14l11-7z",
+  },
   "chevron-up": {
     w: 448,
     h: 512,

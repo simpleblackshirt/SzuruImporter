@@ -734,6 +734,7 @@ useDark();
           :content-url="pop.selectedPost.contentUrl"
           :content-type="pop.selectedPost.contentType"
           :preview-url="pop.selectedPost.previewUrl"
+          :playlist-url="pop.selectedPost.resolvedContent?.playlistUrl"
           @on-resolution-loaded="onResolutionLoaded"
         />
       </div>
