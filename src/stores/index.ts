@@ -92,6 +92,14 @@ export const usePopupStore = defineStore("popup", {
     isSearchingForSimilarPosts: 0,
     /** Failure message of a picked-up context-menu grab, shown as a banner. */
     contextGrabError: undefined as string | undefined,
+    /**
+     * True while a grab's post-population pipeline is in flight (lofter
+     * permalink upgrade, content resolution, info probes): content urls may
+     * still change, so uploads and manual similar searches must not start
+     * off them. Gated in useUpload/useSimilarSearch; cleared in populatePosts's
+     * finally, so a failing pipeline can never wedge it on.
+     */
+    grabPipelineRunning: false,
   }),
   getters: {
     selectedPost: (state) => {

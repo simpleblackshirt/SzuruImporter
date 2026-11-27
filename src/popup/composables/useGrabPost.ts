@@ -47,32 +47,41 @@ export function useGrabPost(deps: GrabPostDeps) {
     enableAutoSearch.value = false;
     pop.selectedPostId = pop.posts[0].id;
 
-    // Lofter normalization: single-image card grabs keep the feed rendition
-    // (no gallery `large` reference), while the post's permalink page serves
-    // a different stored rendition - adopt the permalink's bigimgsrc urls so
-    // both grab surfaces yield the same file (and the booru's dedup sees one
-    // post). Runs after paint (the preview shows the identical-pixels feed
-    // rendition meanwhile) and before the content resolution/info probes so
-    // they measure the final urls. Best-effort: failures keep the scraped
-    // urls.
+    // Block uploads and manual similar searches until the pipeline settles:
+    // the lofter permalink upgrade (and the content resolution/info probes)
+    // can still change the content urls, and acting on the pre-upgrade url
+    // would submit or reverse-search the wrong rendition with no re-run.
+    pop.grabPipelineRunning = true;
     try {
-      await upgradeLofterPosts(pop.posts, fetchLofterPermalinkHtml);
-    } catch (ex) {
-      console.error("lofter permalink upgrade failed:", ex);
-    }
+      // Lofter normalization: single-image card grabs keep the feed rendition
+      // (no gallery `large` reference), while the post's permalink page serves
+      // a different stored rendition - adopt the permalink's bigimgsrc urls so
+      // both grab surfaces yield the same file (and the booru's dedup sees one
+      // post). Runs after paint (the preview shows the identical-pixels feed
+      // rendition meanwhile) and before the content resolution/info probes so
+      // they measure the final urls. Best-effort: failures keep the scraped
+      // urls.
+      try {
+        await upgradeLofterPosts(pop.posts, fetchLofterPermalinkHtml);
+      } catch (ex) {
+        console.error("lofter permalink upgrade failed:", ex);
+      }
 
-    // Resolution needs the same instance tag data as the usage counts, so
-    // either option triggers the shared (single) batched fetch.
-    if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
-      loadTagCounts();
-    }
+      // Resolution needs the same instance tag data as the usage counts, so
+      // either option triggers the shared (single) batched fetch.
+      if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
+        loadTagCounts();
+      }
 
-    // Swap video placeholders for their real content (twitter mp4 variants,
-    // bluesky video classification) before the info probe reads them.
-    await resolvePostsContent(pop.posts);
+      // Swap video placeholders for their real content (twitter mp4 variants,
+      // bluesky video classification) before the info probe reads them.
+      await resolvePostsContent(pop.posts);
 
-    if (cfg.value.fetchPostInfo) {
-      await fetchPostsInfo();
+      if (cfg.value.fetchPostInfo) {
+        await fetchPostsInfo();
+      }
+    } finally {
+      pop.grabPipelineRunning = false;
     }
 
     // Delayed call to findSimilar, as fetchPostInfo might change the post's contentUrl.

@@ -26,6 +26,12 @@ export function useUpload(deps: UploadDeps) {
 
   async function upload(): Promise<UploadAttempt> {
     if (!cfg.value.selectedSiteId) return "busy";
+
+    // The grab's population pipeline (lofter permalink upgrade, content
+    // resolution, info probes) is still changing the content urls - the
+    // selected post's rendition is not final yet.
+    if (pop.grabPipelineRunning) return "busy";
+
     const instanceSpecificData = pop.selectedPost?.instanceSpecificData[cfg.value.selectedSiteId];
 
     // Don't try to upload if an exact copy is already on the server.

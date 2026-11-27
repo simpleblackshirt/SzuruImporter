@@ -12,6 +12,10 @@ export function useSimilarSearch(szuru: ComputedRef<SzurubooruApi | undefined>) 
   const enableAutoSearch = ref(true);
 
   async function clickFindSimilar() {
+    // The grab pipeline may still swap the content urls (lofter permalink
+    // upgrade, content resolution) - a search started now would go stale the
+    // moment the swap lands, and it would not re-run.
+    if (pop.grabPipelineRunning) return;
     if (pop.selectedPost) return await findSimilar(pop.selectedPost);
   }
 

@@ -726,8 +726,20 @@ useDark();
 
       <div class="popup-section">
         <div style="display: flex; gap: 5px">
-          <button v-if="!cfg.autoSearchSimilar" class="primary" @click="clickFindSimilar">Find similar</button>
-          <button class="primary full" title="Ctrl+Enter (Ctrl+Shift+Enter: import and advance)" @click="upload">
+          <button
+            v-if="!cfg.autoSearchSimilar"
+            class="primary"
+            :disabled="pop.grabPipelineRunning"
+            @click="clickFindSimilar"
+          >
+            Find similar
+          </button>
+          <button
+            class="primary full"
+            title="Ctrl+Enter (Ctrl+Shift+Enter: import and advance)"
+            :disabled="pop.grabPipelineRunning"
+            @click="upload"
+          >
             Import
           </button>
           <!-- TODO: Add button to open this popup in fullscreen. -->

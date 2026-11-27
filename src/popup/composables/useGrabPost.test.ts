@@ -181,6 +181,40 @@ describe("auto reverse search", () => {
   });
 });
 
+describe("grab pipeline gate", () => {
+  it("raises grabPipelineRunning during the pipeline and clears it after", async () => {
+    const { pop, pickupStashedGrab, deps } = await makeComposable();
+    const stash = { grabbedAt: Date.now(), targetUrl: "", scrapeResults: stashedScrapeResults };
+    testCtx.browserStub.storage.local.get.mockResolvedValue({ contextGrabStash: stash });
+    // Observed from inside the gated section (the info probe): uploads and
+    // manual searches are locked out while urls may still change, and the
+    // gate is cleared by the time populatePosts returns (the final
+    // findSimilar call correctly runs after it).
+    const runningDuringPipeline: boolean[] = [];
+    deps.fetchPostsInfo.mockImplementation(async () => {
+      runningDuringPipeline.push(pop.grabPipelineRunning);
+    });
+    cfg.value.fetchPostInfo = true;
+
+    await pickupStashedGrab();
+
+    expect(runningDuringPipeline).toEqual([true]);
+    expect(pop.grabPipelineRunning).toBe(false);
+  });
+
+  it("clears the gate even when the pipeline throws", async () => {
+    const { pop, pickupStashedGrab, deps } = await makeComposable();
+    // Run the probe stage so its rejection crosses the gate.
+    cfg.value.fetchPostInfo = true;
+    deps.fetchPostsInfo.mockRejectedValue(new Error("probe broken"));
+    const stash = { grabbedAt: Date.now(), targetUrl: "", scrapeResults: stashedScrapeResults };
+    testCtx.browserStub.storage.local.get.mockResolvedValue({ contextGrabStash: stash });
+
+    await expect(pickupStashedGrab()).rejects.toThrow("probe broken");
+    expect(pop.grabPipelineRunning).toBe(false);
+  });
+});
+
 describe("grabPost (tab grab, regression guard)", () => {
   it("still populates the popup from the active tabs when no stash exists", async () => {
     const { pop, grabPost } = await makeComposable();
