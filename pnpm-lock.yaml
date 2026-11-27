@@ -27,8 +27,8 @@ importers:
         specifier: ^6.3.0
         version: 6.3.0
       neo-scraper:
-        specifier: git+https://github.com/simpleblackshirt/neo-scraper.git#v0.15.0
-        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/461481a3660f8863282e90acbc6ecae3ceffd028
+        specifier: git+https://github.com/simpleblackshirt/neo-scraper.git#v0.15.1
+        version: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/be1fae694914a0079a73a87acfcea20d0856d866
       pinia:
         specifier: ^4.1.0
         version: 4.1.0(@vue/devtools-api@8.2.1)(typescript@5.9.3)(vue@3.5.44(typescript@5.9.3))
@@ -2531,9 +2531,9 @@ packages:
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/461481a3660f8863282e90acbc6ecae3ceffd028:
-    resolution: {gitHosted: true, integrity: sha512-5IlkLSfBMKZq8PwC+dEyIUCeeub1VBF4rgUteUiKvbd9tJ1XKBj7XmBRsli2rIUZzusEINZRmzvJXa8CgWOJZw==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/461481a3660f8863282e90acbc6ecae3ceffd028}
-    version: 0.15.0
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/be1fae694914a0079a73a87acfcea20d0856d866:
+    resolution: {gitHosted: true, integrity: sha512-EDWgj+mOYE6cvjyqHbMaN48y8y47Z6JEEuiFDGg8urRLjhQeYAVplQ0eqZhtO9WJ0Z+1PEQAO4byiQuFRob/RQ==, tarball: https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/be1fae694914a0079a73a87acfcea20d0856d866}
+    version: 0.15.1
 
   nice-try@1.0.5:
     resolution: {integrity: sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==}
@@ -5924,7 +5924,7 @@ snapshots:
 
   natural-compare@1.4.0: {}
 
-  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/461481a3660f8863282e90acbc6ecae3ceffd028:
+  neo-scraper@https://codeload.github.com/simpleblackshirt/neo-scraper/tar.gz/be1fae694914a0079a73a87acfcea20d0856d866:
     dependencies:
       js-cookie: 3.0.8
       turndown: 7.2.5

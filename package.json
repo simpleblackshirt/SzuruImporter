@@ -37,7 +37,7 @@
     "es-toolkit": "^1.53.1",
     "markdown-it": "^15.0.2",
     "mux.js": "^6.3.0",
-    "neo-scraper": "git+https://github.com/simpleblackshirt/neo-scraper.git#v0.15.0",
+    "neo-scraper": "git+https://github.com/simpleblackshirt/neo-scraper.git#v0.15.1",
     "pinia": "^4.1.0",
     "primeflex": "^4.0.0",
     "primevue": "^5.0.2",
