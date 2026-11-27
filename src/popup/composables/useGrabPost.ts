@@ -1,6 +1,7 @@
 import { ScrapeResults } from "neo-scraper";
 import type { Ref } from "vue";
 import { BrowserCommand, ScrapedPostDetails } from "~/models";
+import { fetchLofterPermalinkHtml, upgradeLofterPosts } from "~/sites/lofterUpgrade";
 import { cfg, usePopupStore } from "~/stores";
 import { resolvePostsContent } from "./useContentResolve";
 import { materializeScrapeResults } from "./materialize";
@@ -101,6 +102,17 @@ export function useGrabPost(deps: GrabPostDeps) {
 
     console.dir(scrapeResults);
 
+    // Lofter normalization: single-image card grabs keep the feed rendition
+    // (no gallery `large` reference), while the post's permalink page serves
+    // a different stored rendition - adopt the permalink's bigimgsrc urls so
+    // both grab surfaces yield the same file (and the booru's dedup sees one
+    // post). Best-effort: failures keep the scraped urls.
+    try {
+      await upgradeLofterPosts(scrapeResults, fetchLofterPermalinkHtml);
+    } catch (ex) {
+      console.error("lofter permalink upgrade failed:", ex);
+    }
+
     pop.posts.splice(0);
     pop.posts.push(...materializeScrapeResults(scrapeResults));
 
@@ -151,6 +163,12 @@ export function useGrabPost(deps: GrabPostDeps) {
       // Same prototype rehydration as the tab grab path: storage JSON-serializes
       // the class instances away.
       const scrapeResults = Object.assign(new ScrapeResults(), stored.scrapeResults);
+      // Same lofter normalization as the tab grab path (see grabPost).
+      try {
+        await upgradeLofterPosts(scrapeResults, fetchLofterPermalinkHtml);
+      } catch (ex) {
+        console.error("lofter permalink upgrade failed:", ex);
+      }
       // Materialize before touching the store: a deterministically bad stash
       // must never block popup opens.
       const posts = materializeScrapeResults(scrapeResults);
