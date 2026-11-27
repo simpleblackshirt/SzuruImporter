@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ScrapeResults } from "neo-scraper";
 import { bigimgsrcUrlsFromHtml, fetchLofterPermalinkHtml, upgradeLofterPosts } from "./lofterUpgrade";
 
 // Live urls (user-report grab): the timeline card resolves the feed rendition
@@ -13,28 +12,28 @@ const largeB = "https://imglf4.lf127.net/img/7e2e1fe0f0bd4776/YTBpaWdJRnlBOXJYNX
 
 const PERMALINK = "https://xinjinjumin439852283112.lofter.com/post/b37e3ea3_3f94b4155";
 
-function permalinkPage(...bigimgsrcs: string[]): string {
-  const anchors = bigimgsrcs
-    .map(
-      (url) => `      <a href="${PERMALINK}" bigimgsrc="${url}"><img src="${url}?thumbnail=1"></a>`,
-    )
-    .join("\n");
-  return `<html><body><div class="post photo">\n${anchors}\n</div></body></html>`;
+type Post = {
+  name?: string;
+  contentUrl?: string;
+  pageUrl?: string;
+  source?: string;
+};
+
+function lofterPost(overrides: Partial<Post> = {}): Post {
+  return {
+    name: "[lofter] Post 1",
+    contentUrl: feedA,
+    pageUrl: PERMALINK,
+    source: PERMALINK,
+    ...overrides,
+  };
 }
 
-function makeResults(
-  posts: Array<{ contentUrl: string; pageUrl?: string; sources?: string[] }>,
-  engine = "lofter",
-): ScrapeResults {
-  return {
-    results: [
-      {
-        engine,
-        description: "",
-        posts: posts.map((p) => ({ contentType: "image", uploadMode: "url", ...p })),
-      },
-    ],
-  } as unknown as ScrapeResults;
+function permalinkPage(...bigimgsrcs: string[]): string {
+  const anchors = bigimgsrcs
+    .map((url) => `      <a href="${PERMALINK}" bigimgsrc="${url}"><img src="${url}?thumbnail=1"></a>`)
+    .join("\n");
+  return `<html><body><div class="post photo">\n${anchors}\n</div></body></html>`;
 }
 
 afterEach(() => {
@@ -44,16 +43,15 @@ afterEach(() => {
 
 describe("bigimgsrcUrlsFromHtml", () => {
   it("extracts, query-strips and orders the bigimgsrc renditions", () => {
-    const html = permalinkPage(`${largeA}?imageView&thumbnail=1680x0&quality=96&stripmeta=0&type=jpg`, `${largeB}?imageView&thumbnail=1680x0&quality=96&stripmeta=0&type=jpg`);
+    const html = permalinkPage(
+      `${largeA}?imageView&thumbnail=1680x0&quality=96&stripmeta=0&type=jpg`,
+      `${largeB}?imageView&thumbnail=1680x0&quality=96&stripmeta=0&type=jpg`,
+    );
     expect(bigimgsrcUrlsFromHtml(html)).toEqual([largeA, largeB]);
   });
 
   it("drops non-CDN values and dedupes double renders", () => {
-    const html = permalinkPage(
-      "https://cdn.example.com/not-a-lofter-image.jpg",
-      largeA,
-      largeA,
-    );
+    const html = permalinkPage("https://cdn.example.com/not-a-lofter-image.jpg", largeA, largeA);
     expect(bigimgsrcUrlsFromHtml(html)).toEqual([largeA]);
   });
 
@@ -65,108 +63,115 @@ describe("bigimgsrcUrlsFromHtml", () => {
 describe("upgradeLofterPosts", () => {
   it("swaps a single-image post to the permalink rendition", async () => {
     const fetcher = vi.fn(async () => permalinkPage(`${largeA}?imageView&thumbnail=1680x0&type=jpg`));
-    const results = makeResults([{ contentUrl: feedA, pageUrl: PERMALINK }]);
+    const posts = [lofterPost()];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(1);
-    expect(results.results[0].posts[0].contentUrl).toBe(largeA);
+    expect(posts[0].contentUrl).toBe(largeA);
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(fetcher).toHaveBeenCalledWith(PERMALINK);
   });
 
-  it("takes the rendition from sources when pageUrl is the feed page", async () => {
+  it("takes the rendition from the source when pageUrl is the feed page", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA));
-    const results = makeResults([{ contentUrl: feedA, pageUrl: "https://www.lofter.com/tag/sometag", sources: [PERMALINK] }]);
+    const posts = [lofterPost({ pageUrl: "https://www.lofter.com/tag/sometag", source: PERMALINK })];
 
-    await upgradeLofterPosts(results, fetcher);
+    await upgradeLofterPosts(posts, fetcher);
 
-    expect(results.results[0].posts[0].contentUrl).toBe(largeA);
+    expect(posts[0].contentUrl).toBe(largeA);
     expect(fetcher).toHaveBeenCalledWith(PERMALINK);
   });
 
   it("pairs equal counts positionally (multi-image post)", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA, largeB));
-    const results = makeResults([
-      { contentUrl: feedA, pageUrl: PERMALINK },
-      { contentUrl: feedB, pageUrl: PERMALINK },
-    ]);
+    const posts = [
+      lofterPost({ name: "[lofter] Post 1", contentUrl: feedA }),
+      lofterPost({ name: "[lofter] Post 2", contentUrl: feedB }),
+    ];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(2);
-    expect(results.results[0].posts[0].contentUrl).toBe(largeA);
-    expect(results.results[0].posts[1].contentUrl).toBe(largeB);
+    expect(posts[0].contentUrl).toBe(largeA);
+    expect(posts[1].contentUrl).toBe(largeB);
     // One fetch serves the whole card.
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the feed renditions on a count mismatch", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA, largeB));
-    const results = makeResults([{ contentUrl: feedA, pageUrl: PERMALINK }]);
+    const posts = [lofterPost()];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(0);
-    expect(results.results[0].posts[0].contentUrl).toBe(feedA);
+    expect(posts[0].contentUrl).toBe(feedA);
   });
 
   it("is a no-op when the content url already is the permalink rendition", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA));
-    const results = makeResults([{ contentUrl: largeA, pageUrl: PERMALINK }]);
+    const posts = [lofterPost({ contentUrl: largeA })];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(0);
-    expect(results.results[0].posts[0].contentUrl).toBe(largeA);
+    expect(posts[0].contentUrl).toBe(largeA);
   });
 
   it("keeps the scraped urls when the permalink fetch fails", async () => {
     const fetcher = vi.fn(async () => null);
-    const results = makeResults([{ contentUrl: feedA, pageUrl: PERMALINK }]);
+    const posts = [lofterPost()];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(0);
-    expect(results.results[0].posts[0].contentUrl).toBe(feedA);
+    expect(posts[0].contentUrl).toBe(feedA);
   });
 
   it("keeps the scraped urls when the fetch throws", async () => {
     const fetcher = vi.fn(async () => {
       throw new Error("offline");
     });
-    const results = makeResults([{ contentUrl: feedA, pageUrl: PERMALINK }]);
+    const posts = [lofterPost()];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(0);
-    expect(results.results[0].posts[0].contentUrl).toBe(feedA);
+    expect(posts[0].contentUrl).toBe(feedA);
   });
 
   it("skips extensionless content urls and posts without a permalink", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA));
-    const results = makeResults([
+    const posts = [
       // Themed-page grabs already resolve the extensionless rendition.
-      { contentUrl: "https://imglf3.lf127.net/img/04cd26a9a07e8625/bC9RU05VOUQvNWdMd2gxNVArNHA1Q0dHYlZSRXo3a1RLbDRKdk1UUT", pageUrl: PERMALINK },
+      lofterPost({
+        contentUrl:
+          "https://imglf3.lf127.net/img/04cd26a9a07e8625/bC9RU05VOUQvNWdMd2gxNVArNHA1Q0dHYlZSRXo3a1RLbDRKdk1UUT",
+      }),
       // Viewer-overlay content-only grabs have no post page.
-      { contentUrl: feedA, pageUrl: "https://www.lofter.com/tag/sometag" },
-    ]);
+      lofterPost({ contentUrl: feedA, pageUrl: "https://www.lofter.com/tag/sometag", source: "" }),
+    ];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(upgraded).toBe(0);
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("touches only the lofter engine's results", async () => {
+  it("touches only lofter posts (the engine name marker)", async () => {
     const fetcher = vi.fn(async () => permalinkPage(largeA));
-    const results = makeResults([{ contentUrl: feedA, pageUrl: PERMALINK }], "twitter");
+    const posts = [
+      lofterPost({ name: "[twitter] Post 1", contentUrl: feedA }),
+      lofterPost(),
+    ];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
-    expect(upgraded).toBe(0);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect(results.results[0].posts[0].contentUrl).toBe(feedA);
+    expect(upgraded).toBe(1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(posts[0].contentUrl).toBe(feedA);
+    expect(posts[1].contentUrl).toBe(largeA);
   });
 
   it("fetches each distinct permalink separately", async () => {
@@ -174,17 +179,17 @@ describe("upgradeLofterPosts", () => {
     const fetcher = vi.fn(async (permalink: string) =>
       permalink == PERMALINK ? permalinkPage(largeA) : permalinkPage(largeB),
     );
-    const results = makeResults([
-      { contentUrl: feedA, pageUrl: PERMALINK },
-      { contentUrl: feedB, pageUrl: other },
-    ]);
+    const posts = [
+      lofterPost({ contentUrl: feedA }),
+      lofterPost({ name: "[lofter] Post 2", contentUrl: feedB, pageUrl: other, source: other }),
+    ];
 
-    const upgraded = await upgradeLofterPosts(results, fetcher);
+    const upgraded = await upgradeLofterPosts(posts, fetcher);
 
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(upgraded).toBe(2);
-    expect(results.results[0].posts[0].contentUrl).toBe(largeA);
-    expect(results.results[0].posts[1].contentUrl).toBe(largeB);
+    expect(posts[0].contentUrl).toBe(largeA);
+    expect(posts[1].contentUrl).toBe(largeB);
   });
 });
 

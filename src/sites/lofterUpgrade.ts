@@ -1,5 +1,3 @@
-import type { ScrapeResults } from "neo-scraper";
-
 /**
  * Post-grab normalization for lofter: unify grab-surface renditions with the
  * post's permalink page.
@@ -12,11 +10,13 @@ import type { ScrapeResults } from "neo-scraper";
  * large rendition via the gallery `large` attribute; single-image cards have
  * no such reference, so their content urls stay feed renditions.
  *
- * This pass fetches the post's permalink page and adopts its bigimgsrc
- * rendition urls where the mapping is unambiguous: 1 post <-> 1 bigimgsrc,
- * or equal counts (positional - both orders derive from the same post data).
- * Anything ambiguous or unreachable (login wall, theme without bigimgsrc,
- * count mismatch) keeps the scraped url - never worse than the raw grab.
+ * This pass runs on the popup's materialized posts (after paint, before the
+ * content resolution/info probes): it fetches the post's permalink page and
+ * adopts its bigimgsrc rendition urls where the mapping is unambiguous - 1
+ * post <-> 1 bigimgsrc, or equal counts (positional - both orders derive from
+ * the same post data). Anything ambiguous or unreachable (login wall, theme
+ * without bigimgsrc, count mismatch) keeps the scraped url - never worse than
+ * the raw grab.
  */
 
 /** CDN hosts pattern mirrored from the neo-scraper Lofter engine. */
@@ -31,10 +31,18 @@ const PROCESSING_QUERY_RE = /imageView|thumbnail|quality|stripmeta/;
  * surface embedding the feed rendition. */
 const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|bmp)$/i;
 
+/**
+ * The engine name survives materialization only embedded in the display name
+ * ("[lofter] Post 1"), the same convention as materialize's fallback marker.
+ * Must stay in sync with materializeScrapeResults's `[${result.engine}] ` naming.
+ */
+const LOFTER_NAME_PREFIX = "[lofter] ";
+
 type UpgradeablePost = {
+  name?: string;
   contentUrl?: string;
   pageUrl?: string;
-  sources?: string[];
+  source?: string;
 };
 
 function stripProcessingQuery(url: string): string {
@@ -67,9 +75,10 @@ export function bigimgsrcUrlsFromHtml(html: string): string[] {
   return urls;
 }
 
-/** The post permalink from sources/pageUrl (lofter.com host, /post/ path). */
+/** The post permalink: the engine-emitted source (first line of the joined
+ * source string) or the page url - lofter.com host, /post/ path. */
 function postPermalink(post: UpgradeablePost): string | undefined {
-  for (const candidate of [post.sources?.[0], post.pageUrl]) {
+  for (const candidate of [post.source?.split("\n")[0], post.pageUrl]) {
     if (!candidate) {
       continue;
     }
@@ -107,33 +116,30 @@ function swapContentUrl(post: UpgradeablePost, url: string): boolean {
  * fetch per distinct permalink serves every post of a multi-image card.
  */
 export async function upgradeLofterPosts(
-  results: ScrapeResults,
+  posts: UpgradeablePost[],
   fetchHtml: (permalink: string) => Promise<string | null>,
 ): Promise<number> {
   const postsByPermalink = new Map<string, UpgradeablePost[]>();
-  for (const result of results.results) {
-    if (result.engine != "lofter") {
+  for (const post of posts) {
+    if (!post.name?.startsWith(LOFTER_NAME_PREFIX)) {
       continue;
     }
-    for (const post of result.posts) {
-      if (!post.contentUrl || !isRenditionUrl(post.contentUrl)) {
-        continue;
-      }
-      const permalink = postPermalink(post);
-      if (!permalink) {
-        // Viewer-overlay content-only grabs and CDN-tab rewrites have no
-        // post page to consult.
-        continue;
-      }
-      const group = postsByPermalink.get(permalink) ?? [];
-      group.push(post);
-      postsByPermalink.set(permalink, group);
+    if (!post.contentUrl || !isRenditionUrl(post.contentUrl)) {
+      continue;
     }
+    const permalink = postPermalink(post);
+    if (!permalink) {
+      // Viewer-overlay content-only grabs have no post page to consult.
+      continue;
+    }
+    const group = postsByPermalink.get(permalink) ?? [];
+    group.push(post);
+    postsByPermalink.set(permalink, group);
   }
 
   let upgraded = 0;
   const renditionsByPermalink = new Map<string, string[] | null>();
-  for (const [permalink, posts] of postsByPermalink) {
+  for (const [permalink, group] of postsByPermalink) {
     if (!renditionsByPermalink.has(permalink)) {
       let renditions: string[] | null = null;
       try {
@@ -149,10 +155,10 @@ export async function upgradeLofterPosts(
     if (!renditions) {
       continue;
     }
-    if (posts.length == 1 && renditions.length == 1) {
-      upgraded += swapContentUrl(posts[0], renditions[0]) ? 1 : 0;
-    } else if (posts.length == renditions.length) {
-      posts.forEach((post, index) => {
+    if (group.length == 1 && renditions.length == 1) {
+      upgraded += swapContentUrl(group[0], renditions[0]) ? 1 : 0;
+    } else if (group.length == renditions.length) {
+      group.forEach((post, index) => {
         upgraded += swapContentUrl(post, renditions[index]) ? 1 : 0;
       });
     }

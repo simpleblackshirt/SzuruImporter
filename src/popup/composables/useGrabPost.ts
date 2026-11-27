@@ -47,6 +47,20 @@ export function useGrabPost(deps: GrabPostDeps) {
     enableAutoSearch.value = false;
     pop.selectedPostId = pop.posts[0].id;
 
+    // Lofter normalization: single-image card grabs keep the feed rendition
+    // (no gallery `large` reference), while the post's permalink page serves
+    // a different stored rendition - adopt the permalink's bigimgsrc urls so
+    // both grab surfaces yield the same file (and the booru's dedup sees one
+    // post). Runs after paint (the preview shows the identical-pixels feed
+    // rendition meanwhile) and before the content resolution/info probes so
+    // they measure the final urls. Best-effort: failures keep the scraped
+    // urls.
+    try {
+      await upgradeLofterPosts(pop.posts, fetchLofterPermalinkHtml);
+    } catch (ex) {
+      console.error("lofter permalink upgrade failed:", ex);
+    }
+
     // Resolution needs the same instance tag data as the usage counts, so
     // either option triggers the shared (single) batched fetch.
     if (cfg.value.loadTagCounts || cfg.value.resolveTagAliases) {
@@ -102,17 +116,6 @@ export function useGrabPost(deps: GrabPostDeps) {
 
     console.dir(scrapeResults);
 
-    // Lofter normalization: single-image card grabs keep the feed rendition
-    // (no gallery `large` reference), while the post's permalink page serves
-    // a different stored rendition - adopt the permalink's bigimgsrc urls so
-    // both grab surfaces yield the same file (and the booru's dedup sees one
-    // post). Best-effort: failures keep the scraped urls.
-    try {
-      await upgradeLofterPosts(scrapeResults, fetchLofterPermalinkHtml);
-    } catch (ex) {
-      console.error("lofter permalink upgrade failed:", ex);
-    }
-
     pop.posts.splice(0);
     pop.posts.push(...materializeScrapeResults(scrapeResults));
 
@@ -163,12 +166,6 @@ export function useGrabPost(deps: GrabPostDeps) {
       // Same prototype rehydration as the tab grab path: storage JSON-serializes
       // the class instances away.
       const scrapeResults = Object.assign(new ScrapeResults(), stored.scrapeResults);
-      // Same lofter normalization as the tab grab path (see grabPost).
-      try {
-        await upgradeLofterPosts(scrapeResults, fetchLofterPermalinkHtml);
-      } catch (ex) {
-        console.error("lofter permalink upgrade failed:", ex);
-      }
       // Materialize before touching the store: a deterministically bad stash
       // must never block popup opens.
       const posts = materializeScrapeResults(scrapeResults);
