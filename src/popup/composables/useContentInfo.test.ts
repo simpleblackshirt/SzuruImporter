@@ -50,6 +50,25 @@ describe("updatePostWithRemoteInfo (HEAD probing)", () => {
     expect(post.contentSize).toBe(2048);
   });
 
+  // NetEase CDN style (lofter's feed renditions): the content-type carries a
+  // parameter tail that used to leak into the displayed subtype as
+  // "JPEG;CHARSET=UTF8".
+  it("strips content-type parameters from the subtype", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        headResponse({ "Content-Type": "image/jpeg;charset=utf8", "Content-Length": "771223" }),
+      ),
+    );
+
+    const post = makePost();
+    const ok = await updatePostWithRemoteInfo(post, post.contentUrl);
+
+    expect(ok).toBe(true);
+    expect(post.contentSubType).toBe("JPEG");
+    expect(post.contentSize).toBe(771223);
+  });
+
   // Failure mode caught: with uploadMode "url" the server would be pointed at
   // the stale pre-redirect url.
   it("adopts the final url after a redirect", async () => {

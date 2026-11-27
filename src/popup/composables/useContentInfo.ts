@@ -18,7 +18,10 @@ export async function updatePostWithRemoteInfo(post: ScrapedPostDetails, content
         );
       }
 
-      const [_main, sub] = type.split("/");
+      // Headers like `image/jpeg;charset=utf8` (netease CDN style) carry a
+      // parameter tail - the subtype is the bare token.
+      const [_main, rawSub] = type.split("/");
+      const sub = rawSub?.split(";")[0];
       if (sub) post.contentSubType = sub.toUpperCase();
     }
 
